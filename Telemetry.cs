@@ -9,6 +9,8 @@ namespace Ets2Cluster;
 public sealed class Truck
 {
     public bool Connected, Paused;
+    /// <summary>American Truck Simulator: mph, miles, mpg, °F and DEF (diesel exhaust fluid) instead of AdBlue.</summary>
+    public bool Ats;
     public string Make = "";
     public float SpeedKmh, RpmValue, RpmMax;
     public int SpeedLimit;
@@ -23,7 +25,7 @@ public sealed class Truck
     public float EtaMin = -1f, RestMin = -1f;   // game minutes until arrival / until a rest is needed (-1 unknown)
 
     /// <summary>Changes only when something visible changes, so the cluster is redrawn only when needed.</summary>
-    public string Signature() => string.Join("|", Connected, Paused, Make, SpeedKmh.ToString("0.0"), SpeedLimit, CruiseOn, CruiseKmh.ToString("0"), (int)(RpmValue / 5), RpmMax.ToString("0"), Gear, Shifter,
+    public string Signature() => string.Join("|", Connected, Paused, Ats, Make, SpeedKmh.ToString("0.0"), SpeedLimit, CruiseOn, CruiseKmh.ToString("0"), (int)(RpmValue / 5), RpmMax.ToString("0"), Gear, Shifter,
         FuelL.ToString("0.0"), AdBlueL.ToString("0.0"), FuelAvgLPerKm.ToString("0.000"), RangeKm.ToString("0"), OdoKm.ToString("0.0"), WaterC.ToString("0"), OilC.ToString("0"),
         ParkBrake, MotorBrake, Retarder, Wipers, LowBeam, HighBeam, Beacon, BlinkerL, BlinkerR, AirWarn, OilWarn, WaterWarn, BatteryWarn, FuelWarn, AdBlueWarn,
         GameTime.ToString("yyyyMMddHHmm"), EtaMin.ToString("0"), RestMin.ToString("0"));
@@ -49,7 +51,7 @@ public static class TelemetryParser
         var game = Obj(root, "game"); var t = Obj(root, "truck"); var nav = Obj(root, "navigation");
         var tr = new Truck
         {
-            Connected = Bool(game, "connected"), Paused = Bool(game, "paused"),
+            Connected = Bool(game, "connected"), Paused = Bool(game, "paused"), Ats = Str(game, "gameName").Contains("ATS", StringComparison.OrdinalIgnoreCase),
             Make = Str(t, "make"),
             SpeedKmh = (float)Num(t, "speed"), RpmValue = (float)Num(t, "engineRpm"), RpmMax = (float)Num(t, "engineRpmMax"),
             SpeedLimit = (int)Math.Round(Num(nav, "speedLimit")),

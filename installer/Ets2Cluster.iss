@@ -1,7 +1,7 @@
-; Inno Setup script for the ETS2 Instrument Cluster. Build with build-installer.ps1 (needs Inno Setup 6).
+; Inno Setup script for the ETS2-ATS Instrument Cluster. Build with build-installer.ps1 (needs Inno Setup 6).
 ; Installs for the current user only (no administrator rights).
-#define AppName "ETS2 Instrument Cluster"
-#define AppVer "1.3.1"
+#define AppName "ETS2-ATS Instrument Cluster"
+#define AppVer "1.4.0"
 
 [Setup]
 AppId={{C41D7E26-9B3A-4F58-A1D0-6E2B9F7C3A15}
@@ -32,11 +32,17 @@ Name: "autostart"; Description: "Start the instrument cluster when I log in to W
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\docs\ETS2-Instrument-Cluster-Guide.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
+[InstallDelete]
+; the app was called "ETS2 Instrument Cluster" before
+Type: files; Name: "{autoprograms}\ETS2 Instrument Cluster.lnk"
+Type: files; Name: "{autodesktop}\ETS2 Instrument Cluster.lnk"
+Type: files; Name: "{userstartup}\ETS2 Instrument Cluster.lnk"
+
 [Icons]
-Name: "{autoprograms}\ETS2 Instrument Cluster"; Filename: "{app}\Ets2Cluster.exe"; Comment: "ETS2 Instrument Cluster"
-Name: "{autoprograms}\ETS2 Instrument Cluster user guide"; Filename: "{app}\ETS2-Instrument-Cluster-Guide.pdf"
-Name: "{autodesktop}\ETS2 Instrument Cluster"; Filename: "{app}\Ets2Cluster.exe"; Tasks: desktopicon
-Name: "{userstartup}\ETS2 Instrument Cluster"; Filename: "{app}\Ets2Cluster.exe"; Tasks: autostart
+Name: "{autoprograms}\ETS2-ATS Instrument Cluster"; Filename: "{app}\Ets2Cluster.exe"; Comment: "ETS2-ATS Instrument Cluster"
+Name: "{autoprograms}\ETS2-ATS Instrument Cluster user guide"; Filename: "{app}\ETS2-Instrument-Cluster-Guide.pdf"
+Name: "{autodesktop}\ETS2-ATS Instrument Cluster"; Filename: "{app}\Ets2Cluster.exe"; Tasks: desktopicon
+Name: "{userstartup}\ETS2-ATS Instrument Cluster"; Filename: "{app}\Ets2Cluster.exe"; Tasks: autostart
 
 [Run]
 Filename: "{app}\Ets2Cluster.exe"; Description: "Start the instrument cluster now"; Flags: nowait postinstall skipifsilent

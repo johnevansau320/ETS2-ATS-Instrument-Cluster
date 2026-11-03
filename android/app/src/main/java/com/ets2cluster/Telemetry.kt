@@ -7,6 +7,8 @@ import java.net.URL
 /** Everything the cluster shows, read from the TruckSim GPS Telemetry Server. */
 class Truck {
     var connected = false; var paused = false
+    /** American Truck Simulator: mph, miles, mpg, °F and DEF (diesel exhaust fluid) instead of AdBlue. */
+    var ats = false
     var make = ""
     var speedKmh = 0f; var rpm = 0f; var rpmMax = 0f
     var speedLimit = 0
@@ -28,7 +30,7 @@ class Truck {
 
     /** Changes only when something visible changes, so the cluster is redrawn only when needed. */
     fun signature(): String = listOf(
-        connected, paused, make, "%.1f".format(speedKmh), speedLimit, cruiseOn, "%.0f".format(cruiseKmh), (rpm / 5).toInt(), "%.0f".format(rpmMax), gear, shifter,
+        connected, paused, ats, make, "%.1f".format(speedKmh), speedLimit, cruiseOn, "%.0f".format(cruiseKmh), (rpm / 5).toInt(), "%.0f".format(rpmMax), gear, shifter,
         "%.1f".format(fuelL), "%.1f".format(adBlueL), "%.3f".format(fuelAvgLPerKm), "%.0f".format(rangeKm), "%.1f".format(odoKm), "%.0f".format(waterC), "%.0f".format(oilC),
         parkBrake, motorBrake, retarder, wipers, lowBeam, highBeam, beacon, blinkerL, blinkerR, airWarn, oilWarn, waterWarn, batteryWarn, fuelWarn, adBlueWarn,
         gameClockMin, "%.0f".format(etaMin), "%.0f".format(restMin),
@@ -55,6 +57,7 @@ object TelemetryParser {
         val nav = root.optJSONObject("navigation") ?: JSONObject()
         val tr = Truck()
         tr.connected = game.optBoolean("connected"); tr.paused = game.optBoolean("paused")
+        tr.ats = game.optString("gameName", "").contains("ATS", ignoreCase = true)
         tr.make = t.optString("make", "")
         tr.speedKmh = t.optDouble("speed", 0.0).toFloat(); tr.rpm = t.optDouble("engineRpm", 0.0).toFloat(); tr.rpmMax = t.optDouble("engineRpmMax", 0.0).toFloat()
         tr.speedLimit = Math.round(nav.optDouble("speedLimit", 0.0)).toInt()

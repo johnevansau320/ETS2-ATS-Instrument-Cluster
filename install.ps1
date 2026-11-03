@@ -11,9 +11,14 @@ New-Item -ItemType Directory -Force $dir | Out-Null
 Copy-Item "$src\*" $dir -Recurse -Force
 $target = Join-Path $dir "Ets2Cluster.exe"
 $sh = New-Object -ComObject WScript.Shell
-function Shortcut($path) { $s = $sh.CreateShortcut($path); $s.TargetPath = $target; $s.WorkingDirectory = $dir; $s.Description = "ETS2 Instrument Cluster"; $s.Save() }
-Shortcut (Join-Path ([Environment]::GetFolderPath("Programs")) "ETS2 Instrument Cluster.lnk")
-Write-Host "Installed to $dir (Start Menu: ETS2 Instrument Cluster)"
+function Shortcut($path) { $s = $sh.CreateShortcut($path); $s.TargetPath = $target; $s.WorkingDirectory = $dir; $s.Description = "ETS2-ATS Instrument Cluster"; $s.Save() }
+# the app was called "ETS2 Instrument Cluster" before: replace its old-named shortcuts (keeping autostart if it was on)
+foreach ($k in "Programs", "Startup") {
+    $oldLnk = Join-Path ([Environment]::GetFolderPath($k)) "ETS2 Instrument Cluster.lnk"
+    if (Test-Path $oldLnk) { Remove-Item $oldLnk -Force; if ($k -eq "Startup") { $Autostart = $true } }
+}
+Shortcut (Join-Path ([Environment]::GetFolderPath("Programs")) "ETS2-ATS Instrument Cluster.lnk")
+Write-Host "Installed to $dir (Start Menu: ETS2-ATS Instrument Cluster)"
 if (-not $NoPrompt -and -not $Autostart) { if ((Read-Host "Also start it automatically when you log in to Windows? (y/n)") -eq "y") { $Autostart = $true } }
-if ($Autostart) { Shortcut (Join-Path ([Environment]::GetFolderPath("Startup")) "ETS2 Instrument Cluster.lnk"); Write-Host "Autostart added." }
+if ($Autostart) { Shortcut (Join-Path ([Environment]::GetFolderPath("Startup")) "ETS2-ATS Instrument Cluster.lnk"); Write-Host "Autostart added." }
 if (-not $NoPrompt) { if ((Read-Host "Start it now? (y/n)") -eq "y") { Start-Process $target } }

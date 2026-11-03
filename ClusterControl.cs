@@ -95,10 +95,17 @@ public sealed class ClusterControl : FrameworkElement
 
     // ------------------------------------------------------------------------------------------ units
 
-    double Spd(double kmh) => Cfg.Mph ? kmh * 0.621371 : kmh;
-    double Dist(double km) => Cfg.Mph ? km * 0.621371 : km;
-    string SpdUnit => Cfg.Mph ? "mph" : "km/h";
-    string DistUnit => Cfg.Mph ? "mi" : "km";
+    // ATS always shows US units (mph, miles, mpg, °F); ETS2 follows the Units setting
+    bool Imp => T.Ats || Cfg.Mph;
+    double Spd(double kmh) => Imp ? kmh * 0.621371 : kmh;
+    double Dist(double km) => Imp ? km * 0.621371 : km;
+    string SpdUnit => Imp ? "mph" : "km/h";
+    string DistUnit => Imp ? "mi" : "km";
+    string Temp(float c) => c > 0 ? Math.Round(T.Ats ? c * 9 / 5 + 32 : c).ToString(CultureInfo.InvariantCulture) + (T.Ats ? "°F" : "°C") : "--";
+    /// <summary>Litres per 100 km -> the consumption shown: l/100km, or US miles per gallon in ATS.</summary>
+    string Cons(double lPer100) => lPer100 <= 0 ? "--" : (T.Ats ? 235.215 / lPer100 : lPer100).ToString("0.0", CultureInfo.InvariantCulture);
+    string ConsUnit => T.Ats ? "mpg" : "l/100km";
+    string DefName => T.Ats ? "DEF" : "ADBLUE";
 
     static string Clock(DateTime t) => t == DateTime.MinValue ? "--:--" : t.ToString("HH:mm", CultureInfo.InvariantCulture);
     static string HoursMinutes(float min) { if (min < 0) return "--:--"; int m = (int)Math.Round(min); return (m / 60).ToString(CultureInfo.InvariantCulture) + ":" + (m % 60).ToString("00", CultureInfo.InvariantCulture); }
@@ -121,10 +128,10 @@ public sealed class ClusterControl : FrameworkElement
     void Cluster(DrawingContext dc)
     {
         var t = T;
-        double max = Cfg.Mph ? 80 : 120;
+        double max = Imp ? 80 : 120;
         double v = Spd(dispSpeed);
         double limit = t.SpeedLimit > 0 ? Spd(t.SpeedLimit) : 0;
-        bool over = limit > 0 && v > limit + (Cfg.Mph ? 2 : 3);
+        bool over = limit > 0 && v > limit + (Imp ? 2 : 3);
         double Ang(double val) => 200 - 220 * Math.Clamp(val / max, 0, 1.03);
 
         // background glow
@@ -155,7 +162,7 @@ public sealed class ClusterControl : FrameworkElement
         Gauge(dc, 16.5, -20, dispAdBlue, t.AdBlueWarn ? Red : Blue, false);
 
         // ticks and numbers
-        int labelFrom = Cfg.Mph ? 40 : 60;
+        int labelFrom = Imp ? 40 : 60;
         for (int i = 0; i <= (int)max; i += 2)
         {
             bool major = i % 10 == 0;
@@ -234,7 +241,7 @@ public sealed class ClusterControl : FrameworkElement
         if (fraction > 0.004) dc.DrawGeometry(null, PenOf(fill, 12, true), Arc(r, a1, fa));
         // labels: the level and the name above the top end, 1/2 in the middle, E at the bottom end
         var top = P(a0, r + 40); var mid = P((a0 + a1) / 2, r + 36); var bot = P(a1, r + 34);
-        Draw(dc, left ? "DIESEL" : "ADBLUE", top.X, top.Y - 40, 16, Dim, 1, true);
+        Draw(dc, left ? "DIESEL" : DefName, top.X, top.Y - 40, 16, Dim, 1, true);
         Draw(dc, Math.Round(fraction * 100).ToString(CultureInfo.InvariantCulture) + "%", top.X, top.Y - 14, 28, fill, 1);
         Draw(dc, "1/2", mid.X, mid.Y, 18, Dim, 1, true);
         Draw(dc, "E", bot.X, bot.Y, 18, Dim, 1, true);
@@ -264,13 +271,13 @@ public sealed class ClusterControl : FrameworkElement
         var t = T;
         // top corners: coolant and oil temperature
         Draw(dc, "COOLANT", 50, 40, 17, Dim, 0, true);
-        Draw(dc, t.WaterC > 0 ? Math.Round(t.WaterC).ToString(CultureInfo.InvariantCulture) + "°C" : "--", 50, 72, 34, t.WaterWarn ? Red : White, 0);
+        Draw(dc, Temp(t.WaterC), 50, 72, 34, t.WaterWarn ? Red : White, 0);
         Draw(dc, "OIL", DW - 50, 40, 17, Dim, 2, true);
-        Draw(dc, t.OilC > 0 ? Math.Round(t.OilC).ToString(CultureInfo.InvariantCulture) + "°C" : "--", DW - 50, 72, 34, t.OilWarn ? Red : White, 2);
+        Draw(dc, Temp(t.OilC), DW - 50, 72, 34, t.OilWarn ? Red : White, 2);
 
         // left: consumption, trip consumption, range
-        Row(dc, 50, 190, "AVERAGE CONSUMPTION", t.FuelAvgLPerKm > 0 ? (t.FuelAvgLPerKm * 100).ToString("0.0", CultureInfo.InvariantCulture) : "--", "l/100km", White, false);
-        Row(dc, 50, 300, "THIS TRIP", TripLPer100 > 0 ? TripLPer100.ToString("0.0", CultureInfo.InvariantCulture) : "--", "l/100km", White, false);
+        Row(dc, 50, 190, "AVERAGE CONSUMPTION", Cons(t.FuelAvgLPerKm * 100), ConsUnit, White, false);
+        Row(dc, 50, 300, "THIS TRIP", Cons(TripLPer100), ConsUnit, White, false);
         Row(dc, 50, 410, "RANGE", t.RangeKm > 0 ? Math.Round(Dist(t.RangeKm)).ToString(CultureInfo.InvariantCulture) : "--", DistUnit, t.FuelWarn ? Amber : White, false);
 
         // right: cruise, ETA, speed limit
@@ -327,7 +334,7 @@ public sealed class ClusterControl : FrameworkElement
         if (t.WaterWarn) tags.Add(("COOLANT", Red));
         if (t.BatteryWarn) tags.Add(("BATTERY", Red));
         if (t.FuelWarn) tags.Add(("FUEL", Amber));
-        if (t.AdBlueWarn) tags.Add(("ADBLUE", Amber));
+        if (t.AdBlueWarn) tags.Add((DefName, Amber));
         if (tags.Count == 0) return;
         double total = 0; var widths = new List<double>();
         foreach (var (s, _) in tags) { double w = Text(s, 18, Dim).Width + 26; widths.Add(w); total += w + 8; }

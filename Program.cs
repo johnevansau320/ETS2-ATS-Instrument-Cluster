@@ -19,7 +19,7 @@ public static class Program
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         app.DispatcherUnhandledException += (_, e) =>
         {
-            MessageBox.Show(e.Exception.ToString(), "ETS2 Instrument Cluster - unexpected error");
+            MessageBox.Show(e.Exception.ToString(), "ETS2-ATS Instrument Cluster - unexpected error");
             e.Handled = true;
         };
         return app.Run(new ClusterWindow(cfg, args.Contains("--demo"), Arg("--snapshot"), Arg("--demo-state")));

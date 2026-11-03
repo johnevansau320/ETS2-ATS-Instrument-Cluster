@@ -87,10 +87,17 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
     // ------------------------------------------------------------------------------------------ units
 
-    private fun spd(kmh: Float) = if (mph) kmh * 0.621371f else kmh
-    private fun dist(km: Float) = if (mph) km * 0.621371f else km
-    private val spdUnit get() = if (mph) "mph" else "km/h"
-    private val distUnit get() = if (mph) "mi" else "km"
+    // ATS always shows US units (mph, miles, mpg, °F); ETS2 follows the Units setting
+    private val imp get() = truck.ats || mph
+    private fun spd(kmh: Float) = if (imp) kmh * 0.621371f else kmh
+    private fun dist(km: Float) = if (imp) km * 0.621371f else km
+    private val spdUnit get() = if (imp) "mph" else "km/h"
+    private val distUnit get() = if (imp) "mi" else "km"
+    private fun temp(c: Float) = if (c > 0) num(if (truck.ats) c * 9f / 5f + 32f else c) + if (truck.ats) "°F" else "°C" else "--"
+    /** Litres per 100 km -> the consumption shown: l/100km, or US miles per gallon in ATS. */
+    private fun cons(lPer100: Double) = if (lPer100 <= 0) "--" else "%.1f".format(if (truck.ats) 235.215 / lPer100 else lPer100)
+    private val consUnit get() = if (truck.ats) "mpg" else "l/100km"
+    private val defName get() = if (truck.ats) "DEF" else "ADBLUE"
 
     private fun clock(minutes: Int) = if (minutes < 0) "--:--" else "%02d:%02d".format((minutes / 60) % 24, minutes % 60)
     private fun hoursMinutes(min: Float): String { if (min < 0) return "--:--"; val m = min.roundToInt(); return "%d:%02d".format(m / 60, m % 60) }
@@ -159,10 +166,10 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
     private fun cluster(c: Canvas) {
         val t = truck
-        val max = if (mph) 80f else 120f
+        val max = if (imp) 80f else 120f
         val v = spd(dispSpeed)
         val limit = if (t.speedLimit > 0) spd(t.speedLimit.toFloat()) else 0f
-        val over = limit > 0 && v > limit + (if (mph) 2 else 3)
+        val over = limit > 0 && v > limit + (if (imp) 2 else 3)
         fun ang(value: Float) = 200f - 220f * (value / max).coerceIn(0f, 1.03f)
 
         // background glow
@@ -186,7 +193,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         gauge(c, 16.5f, -20f, dispAdBlue, if (t.adBlueWarn) RED else BLUE, false)
 
         // ticks and numbers
-        val labelFrom = if (mph) 40 else 60
+        val labelFrom = if (imp) 40 else 60
         var i = 0
         while (i <= max.toInt()) {
             val major = i % 10 == 0
@@ -259,7 +266,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         val fa = a1 + (a0 - a1) * fraction.coerceIn(0f, 1f)   // fills from the bottom end (a1) upwards
         if (fraction > 0.004f) arc(c, r, a1, fa, color, 12f)
         val top = p(a0, r + 40f); val mid = p((a0 + a1) / 2, r + 36f); val bot = p(a1, r + 34f)
-        text(c, if (left) "DIESEL" else "ADBLUE", top[0], top[1] - 40f, 16f, DIM, 1, true)
+        text(c, if (left) "DIESEL" else defName, top[0], top[1] - 40f, 16f, DIM, 1, true)
         text(c, num(fraction * 100f) + "%", top[0], top[1] - 14f, 28f, color, 1)
         text(c, "1/2", mid[0], mid[1], 18f, DIM, 1, true)
         text(c, "E", bot[0], bot[1], 18f, DIM, 1, true)
@@ -290,13 +297,13 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         val t = truck
         // top corners: coolant and oil temperature
         text(c, "COOLANT", 50f, 40f, 17f, DIM, 0, true)
-        text(c, if (t.waterC > 0) num(t.waterC) + "°C" else "--", 50f, 72f, 34f, if (t.waterWarn) RED else WHITE, 0)
+        text(c, temp(t.waterC), 50f, 72f, 34f, if (t.waterWarn) RED else WHITE, 0)
         text(c, "OIL", DW - 50f, 40f, 17f, DIM, 2, true)
-        text(c, if (t.oilC > 0) num(t.oilC) + "°C" else "--", DW - 50f, 72f, 34f, if (t.oilWarn) RED else WHITE, 2)
+        text(c, temp(t.oilC), DW - 50f, 72f, 34f, if (t.oilWarn) RED else WHITE, 2)
 
         // left: consumption, trip consumption, range
-        row(c, 50f, 190f, "AVERAGE CONSUMPTION", if (t.fuelAvgLPerKm > 0) "%.1f".format(t.fuelAvgLPerKm * 100) else "--", "l/100km", WHITE, false)
-        row(c, 50f, 300f, "THIS TRIP", if (tripLPer100 > 0) "%.1f".format(tripLPer100) else "--", "l/100km", WHITE, false)
+        row(c, 50f, 190f, "AVERAGE CONSUMPTION", cons(t.fuelAvgLPerKm * 100.0), consUnit, WHITE, false)
+        row(c, 50f, 300f, "THIS TRIP", cons(tripLPer100), consUnit, WHITE, false)
         row(c, 50f, 410f, "RANGE", if (t.rangeKm > 0) num(dist(t.rangeKm)) else "--", distUnit, if (t.fuelWarn) AMBER else WHITE, false)
 
         // right: cruise, ETA, speed limit
@@ -351,7 +358,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         if (t.waterWarn) tags.add("COOLANT" to RED)
         if (t.batteryWarn) tags.add("BATTERY" to RED)
         if (t.fuelWarn) tags.add("FUEL" to AMBER)
-        if (t.adBlueWarn) tags.add("ADBLUE" to AMBER)
+        if (t.adBlueWarn) tags.add(defName to AMBER)
         if (tags.isEmpty()) return
         tp.typeface = bold; tp.textSize = 18f
         val widths = tags.map { tp.measureText(it.first) + 26f }

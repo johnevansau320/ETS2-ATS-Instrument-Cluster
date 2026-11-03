@@ -12,7 +12,7 @@ class UpdateInfo(val latest: String, val tag: String, val pageUrl: String)
  * beyond a normal web request). It never downloads or installs anything: the user chooses to open the release page.
  */
 object UpdateCheck {
-    const val REPO = "johnevansau320/ETS2-Intrument-Cluster"
+    const val REPO = "johnevansau320/ETS2-ATS-Instrument-Cluster"
     const val RELEASES_PAGE = "https://github.com/$REPO/releases/latest"
 
     /** "v1.3.0" -> [1, 3, 0]; null when it is not a version. */

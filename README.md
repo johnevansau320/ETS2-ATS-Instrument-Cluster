@@ -1,10 +1,10 @@
-# ETS2 Instrument Cluster
+# ETS2-ATS Instrument Cluster
 
-A stand-alone digital instrument cluster for Euro Truck Simulator 2. It runs in its own window, so you can put it anywhere on your screens, away from the ETS2 GPS window.
+A stand-alone digital instrument cluster for Euro Truck Simulator 2 and American Truck Simulator (in ATS it shows mph, miles, mpg, °F and DEF instead of AdBlue). It runs in its own window, so you can put it anywhere on your screens, away from the ETS2 GPS window.
 
 ![The cluster with demonstration values](docs/cluster-demo.png)
 
-It reads the live truck data from the **TruckSim GPS Telemetry Server** (default `127.0.0.1:31377`), the same source the [ETS2 GPS](https://github.com/johnevansau320/ETS2GPS-Win) apps use. It does not touch the game and sends nothing to it.
+It reads the live truck data from the **TruckSim GPS Telemetry Server** (default `127.0.0.1:31377`), the same source the [ETS2-ATS GPS](https://github.com/johnevansau320/ETS2-ATS-GPS-Win) apps use. It does not touch the game and sends nothing to it.
 
 **User guide:** [ETS2-Instrument-Cluster-Guide.pdf](docs/ETS2-Instrument-Cluster-Guide.pdf) (installing, reading the cluster, the menu, using it with the GPS, the Android version, troubleshooting).
 

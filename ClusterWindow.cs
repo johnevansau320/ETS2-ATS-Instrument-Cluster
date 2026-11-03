@@ -27,7 +27,7 @@ public sealed class ClusterWindow : Window
     public ClusterWindow(Settings settings, bool demo, string? snapshot, string? demoState = null)
     {
         cfg = settings; this.demo = demo;
-        Title = "ETS2 Instrument Cluster";
+        Title = "ETS2-ATS Instrument Cluster";
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         ResizeMode = ResizeMode.CanResizeWithGrip;
         MinWidth = 320; MinHeight = 180;
@@ -186,7 +186,7 @@ public sealed class ClusterWindow : Window
         m.Items.Add(size);
 
         var unit = new MenuItem { Header = "Units" };
-        var kmh = Item("km/h and km", () => { }, true, !cfg.Mph); var mph = Item("mph and miles", () => { }, true, cfg.Mph);
+        var kmh = Item("km/h and km (ATS always mph)", () => { }, true, !cfg.Mph); var mph = Item("mph and miles", () => { }, true, cfg.Mph);
         kmh.Click += (_, _) => { cfg.Mph = false; kmh.IsChecked = true; mph.IsChecked = false; cfg.Save(); dirty = true; view.InvalidateVisual(); };
         mph.Click += (_, _) => { cfg.Mph = true; mph.IsChecked = true; kmh.IsChecked = false; cfg.Save(); dirty = true; view.InvalidateVisual(); };
         unit.Items.Add(kmh); unit.Items.Add(mph);
@@ -210,7 +210,7 @@ public sealed class ClusterWindow : Window
         auto.Click += (_, _) => { cfg.CheckUpdates = auto.IsChecked; cfg.Save(); if (!cfg.CheckUpdates) SetUpdate(null); };
         m.Items.Add(auto);
         m.Items.Add(Item("Check for updates now...", CheckNow));
-        m.Items.Add(new MenuItem { Header = "ETS2 Instrument Cluster " + UpdateCheck.CurrentText, IsEnabled = false });
+        m.Items.Add(new MenuItem { Header = "ETS2-ATS Instrument Cluster " + UpdateCheck.CurrentText, IsEnabled = false });
         m.Items.Add(new Separator());
         m.Items.Add(Item("Close", Close));
         return m;
@@ -278,11 +278,11 @@ public sealed class ClusterWindow : Window
             var u = await UpdateCheck.CheckAsync();
             cfg.LastUpdateCheckUtc = DateTime.UtcNow.Ticks; cfg.SkippedVersion = ""; cfg.Save();
             SetUpdate(u);
-            if (u == null) MessageBox.Show(this, "You have the latest version (" + UpdateCheck.CurrentText + ").", "ETS2 Instrument Cluster", MessageBoxButton.OK, MessageBoxImage.Information);
-            else if (MessageBox.Show(this, "Version " + u.Latest.ToString(3) + " is available (you have " + UpdateCheck.CurrentText + ").\n\nOpen the download page?", "ETS2 Instrument Cluster", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            if (u == null) MessageBox.Show(this, "You have the latest version (" + UpdateCheck.CurrentText + ").", "ETS2-ATS Instrument Cluster", MessageBoxButton.OK, MessageBoxImage.Information);
+            else if (MessageBox.Show(this, "Version " + u.Latest.ToString(3) + " is available (you have " + UpdateCheck.CurrentText + ").\n\nOpen the download page?", "ETS2-ATS Instrument Cluster", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 OpenPage(u.PageUrl);
         }
-        catch { MessageBox.Show(this, "Could not reach GitHub to look for updates. Check your internet connection and try again.", "ETS2 Instrument Cluster", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch { MessageBox.Show(this, "Could not reach GitHub to look for updates. Check your internet connection and try again.", "ETS2-ATS Instrument Cluster", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
     static void OpenPage(string url)

@@ -101,13 +101,13 @@ class MainActivity : Activity() {
     private fun showMenu() {
         val items = arrayOf(
             "PC address (" + settings.host.ifEmpty { "not set" } + ")",
-            if (settings.mph) "Units: miles (tap for km)" else "Units: kilometres (tap for miles)",
+            if (settings.mph) "Units: miles (tap for km)" else "Units: kilometres, ATS always miles (tap for miles)",
             if (settings.showMake) "Truck name: shown (tap to hide)" else "Truck name: hidden (tap to show)",
             if (settings.checkUpdates) "Check for updates: on (tap to turn off)" else "Check for updates: off (tap to turn on)",
             "Reset trip",
             "Check for updates now",
         )
-        AlertDialog.Builder(this).setTitle("ETS2 Instrument Cluster").setItems(items) { _, i ->
+        AlertDialog.Builder(this).setTitle("ETS2-ATS Instrument Cluster").setItems(items) { _, i ->
             when (i) {
                 0 -> askHost()
                 1 -> { settings.mph = !settings.mph; view.mph = settings.mph; view.invalidate() }

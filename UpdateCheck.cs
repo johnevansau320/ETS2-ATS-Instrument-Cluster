@@ -13,7 +13,7 @@ public sealed record UpdateInfo(Version Latest, string Tag, string PageUrl);
 /// </summary>
 public static class UpdateCheck
 {
-    public const string Repo = "johnevansau320/ETS2-Intrument-Cluster";
+    public const string Repo = "johnevansau320/ETS2-ATS-Instrument-Cluster";
     public static string ReleasesPage => "https://github.com/" + Repo + "/releases/latest";
 
     public static string? FakeVersion;   // --fake-version 0.9.0 (test only)
