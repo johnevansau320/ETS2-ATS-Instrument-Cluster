@@ -95,16 +95,16 @@ public sealed class ClusterControl : FrameworkElement
 
     // ------------------------------------------------------------------------------------------ units
 
-    // ATS always shows US units (mph, miles, mpg, °F); ETS2 follows the Units setting
-    bool Imp => T.Ats || Cfg.Mph;
+    // the Units setting: the game's own units (US units in ATS), metric or imperial
+    bool Imp => Cfg.UnitChoice == "imperial" || (Cfg.UnitChoice != "metric" && T.Ats);
     double Spd(double kmh) => Imp ? kmh * 0.621371 : kmh;
     double Dist(double km) => Imp ? km * 0.621371 : km;
     string SpdUnit => Imp ? "mph" : "km/h";
     string DistUnit => Imp ? "mi" : "km";
-    string Temp(float c) => c > 0 ? Math.Round(T.Ats ? c * 9 / 5 + 32 : c).ToString(CultureInfo.InvariantCulture) + (T.Ats ? "°F" : "°C") : "--";
+    string Temp(float c) => c > 0 ? Math.Round(Imp ? c * 9 / 5 + 32 : c).ToString(CultureInfo.InvariantCulture) + (Imp ? "°F" : "°C") : "--";
     /// <summary>Litres per 100 km -> the consumption shown: l/100km, or US miles per gallon in ATS.</summary>
-    string Cons(double lPer100) => lPer100 <= 0 ? "--" : (T.Ats ? 235.215 / lPer100 : lPer100).ToString("0.0", CultureInfo.InvariantCulture);
-    string ConsUnit => T.Ats ? "mpg" : "l/100km";
+    string Cons(double lPer100) => lPer100 <= 0 ? "--" : (Imp ? 235.215 / lPer100 : lPer100).ToString("0.0", CultureInfo.InvariantCulture);
+    string ConsUnit => Imp ? "mpg" : "l/100km";
     string DefName => T.Ats ? "DEF" : "ADBLUE";
 
     static string Clock(DateTime t) => t == DateTime.MinValue ? "--:--" : t.ToString("HH:mm", CultureInfo.InvariantCulture);

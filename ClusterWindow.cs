@@ -186,10 +186,13 @@ public sealed class ClusterWindow : Window
         m.Items.Add(size);
 
         var unit = new MenuItem { Header = "Units" };
-        var kmh = Item("km/h and km (ATS always mph)", () => { }, true, !cfg.Mph); var mph = Item("mph and miles", () => { }, true, cfg.Mph);
-        kmh.Click += (_, _) => { cfg.Mph = false; kmh.IsChecked = true; mph.IsChecked = false; cfg.Save(); dirty = true; view.InvalidateVisual(); };
-        mph.Click += (_, _) => { cfg.Mph = true; mph.IsChecked = true; kmh.IsChecked = false; cfg.Save(); dirty = true; view.InvalidateVisual(); };
-        unit.Items.Add(kmh); unit.Items.Add(mph);
+        var unitItems = new List<(MenuItem, string)>();
+        foreach (var (id, label) in new[] { ("game", "Same as the game (km/h in ETS2, mph in ATS)"), ("metric", "Metric: km/h, km, l/100km, °C"), ("imperial", "Imperial: mph, miles, mpg, °F") })
+        {
+            var it = Item(label, () => { }, true, cfg.UnitChoice == id);
+            it.Click += (_, _) => { cfg.Units = id; foreach (var (o, oid) in unitItems) o.IsChecked = oid == id; cfg.Save(); dirty = true; view.InvalidateVisual(); };
+            unitItems.Add((it, id)); unit.Items.Add(it);
+        }
         m.Items.Add(unit);
 
         var make = Item("Show the truck make", () => { }, true, cfg.ShowMake);
@@ -212,6 +215,7 @@ public sealed class ClusterWindow : Window
         m.Items.Add(Item("Check for updates now...", CheckNow));
         m.Items.Add(new MenuItem { Header = "ETS2-ATS Instrument Cluster " + UpdateCheck.CurrentText, IsEnabled = false });
         m.Items.Add(new Separator());
+        m.Items.Add(Item("Minimize (say \"minimize\" / \"restore\" to the ETS2-ATS GPS app)", () => WindowState = WindowState.Minimized));
         m.Items.Add(Item("Close", Close));
         return m;
     }

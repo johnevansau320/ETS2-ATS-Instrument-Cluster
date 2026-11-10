@@ -11,9 +11,10 @@ class Settings(ctx: Context) {
     var host: String
         get() = p.getString("host", "") ?: ""
         set(v) { p.edit().putString("host", v.trim()).apply() }
-    var mph: Boolean
-        get() = p.getBoolean("mph", false)
-        set(v) { p.edit().putBoolean("mph", v).apply() }
+    /** "game" (km/h in ETS2, mph in ATS), "metric" or "imperial"; older versions only had "mph" (mph in ETS2). */
+    var units: String
+        get() = p.getString("units", null) ?: if (p.getBoolean("mph", false)) "imperial" else "game"
+        set(v) { p.edit().putString("units", v).apply() }
     var showMake: Boolean
         get() = p.getBoolean("make", true)
         set(v) { p.edit().putBoolean("make", v).apply() }

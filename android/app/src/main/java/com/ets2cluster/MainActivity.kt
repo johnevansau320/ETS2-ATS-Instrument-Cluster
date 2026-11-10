@@ -30,7 +30,7 @@ class MainActivity : Activity() {
         settings = Settings(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         view = ClusterView(this) { showMenu() }
-        view.mph = settings.mph; view.showMake = settings.showMake
+        view.units = settings.units; view.showMake = settings.showMake
         setContentView(view)
         client = TelemetryClient({ settings.host }, { tr -> ui.post { onTruck(tr) } }, { s -> ui.post { view.statusText = s; view.invalidate() } })
     }
@@ -46,7 +46,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         immersive()
-        view.mph = settings.mph; view.showMake = settings.showMake
+        view.units = settings.units; view.showMake = settings.showMake
         if (settings.host.equals("demo", true)) startDemo() else { demoRunning = false; client.start() }
         ui.post(clockTick)
         maybeCheckUpdate()
@@ -101,7 +101,7 @@ class MainActivity : Activity() {
     private fun showMenu() {
         val items = arrayOf(
             "PC address (" + settings.host.ifEmpty { "not set" } + ")",
-            if (settings.mph) "Units: miles (tap for km)" else "Units: kilometres, ATS always miles (tap for miles)",
+            "Units: " + when (settings.units) { "metric" -> "metric (tap for imperial)"; "imperial" -> "imperial (tap for the game's own)"; else -> "same as the game (tap for metric)" },
             if (settings.showMake) "Truck name: shown (tap to hide)" else "Truck name: hidden (tap to show)",
             if (settings.checkUpdates) "Check for updates: on (tap to turn off)" else "Check for updates: off (tap to turn on)",
             "Reset trip",
@@ -110,7 +110,10 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this).setTitle("ETS2-ATS Instrument Cluster").setItems(items) { _, i ->
             when (i) {
                 0 -> askHost()
-                1 -> { settings.mph = !settings.mph; view.mph = settings.mph; view.invalidate() }
+                1 -> {
+                    settings.units = when (settings.units) { "game" -> "metric"; "metric" -> "imperial"; else -> "game" }
+                    view.units = settings.units; view.invalidate()
+                }
                 2 -> { settings.showMake = !settings.showMake; view.showMake = settings.showMake; view.invalidate() }
                 3 -> {
                     settings.checkUpdates = !settings.checkUpdates

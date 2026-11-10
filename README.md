@@ -1,6 +1,6 @@
 # ETS2-ATS Instrument Cluster
 
-A stand-alone digital instrument cluster for Euro Truck Simulator 2 and American Truck Simulator (in ATS it shows mph, miles, mpg, °F and DEF instead of AdBlue). It runs in its own window, so you can put it anywhere on your screens, away from the ETS2 GPS window.
+A stand-alone digital instrument cluster for Euro Truck Simulator 2 and American Truck Simulator (by default in the game's own units: in ATS mph, miles, mpg, °F and DEF instead of AdBlue; or always metric or imperial). It runs in its own window, so you can put it anywhere on your screens, away from the ETS2 GPS window.
 
 ![The cluster with demonstration values](docs/cluster-demo.png)
 
@@ -44,7 +44,8 @@ The menu (long-press) has the PC address, km or miles, show the truck name, rese
 | Opacity | Ctrl + mouse wheel, or right-click > Opacity |
 | Full screen | Double-click, or **F11** (Esc to leave) |
 | Always on top | Right-click > Always on top (on by default). The game must be windowed or borderless for another window to show above it |
-| Menu | Right-click: always on top, opacity, size presets, units (km/h or mph), show the make, reset trip, telemetry server address, reset window, update checks, close |
+| Minimize / restore | Right-click > Minimize, or by voice through the [ETS2-ATS GPS](https://github.com/johnevansau320/ETS2-ATS-GPS-Win) Windows app 1.12.0+: *minimize* / *restore* (the GPS and the cluster together) or *minimize the cluster* / *restore the cluster* |
+| Menu | Right-click: always on top, opacity, size presets, units (same as the game, metric or imperial), show the make, reset trip, telemetry server address, reset window, update checks, minimize, close |
 
 The position, size, opacity and options are remembered in `%APPDATA%\ETS2-Cluster\cluster.json`. The trip counter starts the first time the cluster sees the truck; **Reset trip** restarts the trip distance and the trip consumption. Refuelling is ignored when working out the trip consumption.
 

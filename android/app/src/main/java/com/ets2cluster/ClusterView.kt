@@ -41,7 +41,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
     }
 
     var truck = Truck()
-    var mph = false
+    var units = "game"
     var showMake = true
     var tripKm = 0.0
     var tripLPer100 = -1.0
@@ -87,16 +87,16 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
     // ------------------------------------------------------------------------------------------ units
 
-    // ATS always shows US units (mph, miles, mpg, °F); ETS2 follows the Units setting
-    private val imp get() = truck.ats || mph
+    // the Units setting: the game's own units (US units in ATS), metric or imperial
+    private val imp get() = units == "imperial" || (units != "metric" && truck.ats)
     private fun spd(kmh: Float) = if (imp) kmh * 0.621371f else kmh
     private fun dist(km: Float) = if (imp) km * 0.621371f else km
     private val spdUnit get() = if (imp) "mph" else "km/h"
     private val distUnit get() = if (imp) "mi" else "km"
-    private fun temp(c: Float) = if (c > 0) num(if (truck.ats) c * 9f / 5f + 32f else c) + if (truck.ats) "°F" else "°C" else "--"
+    private fun temp(c: Float) = if (c > 0) num(if (imp) c * 9f / 5f + 32f else c) + if (imp) "°F" else "°C" else "--"
     /** Litres per 100 km -> the consumption shown: l/100km, or US miles per gallon in ATS. */
-    private fun cons(lPer100: Double) = if (lPer100 <= 0) "--" else "%.1f".format(if (truck.ats) 235.215 / lPer100 else lPer100)
-    private val consUnit get() = if (truck.ats) "mpg" else "l/100km"
+    private fun cons(lPer100: Double) = if (lPer100 <= 0) "--" else "%.1f".format(if (imp) 235.215 / lPer100 else lPer100)
+    private val consUnit get() = if (imp) "mpg" else "l/100km"
     private val defName get() = if (truck.ats) "DEF" else "ADBLUE"
 
     private fun clock(minutes: Int) = if (minutes < 0) "--:--" else "%02d:%02d".format((minutes / 60) % 24, minutes % 60)

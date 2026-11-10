@@ -12,7 +12,10 @@ public sealed class Settings
     public double Height { get; set; } = 540;
     public double Opacity { get; set; } = 1.0;
     public bool Topmost { get; set; } = true;
-    public bool Mph { get; set; } = false;
+    public bool Mph { get; set; } = false;   // older versions' setting: mph in ETS2 (read when Units is not set yet)
+    /// <summary>"game" (km/h in ETS2, mph in ATS), "metric" or "imperial"; empty = not chosen yet.</summary>
+    public string Units { get; set; } = "";
+    [System.Text.Json.Serialization.JsonIgnore] public string UnitChoice => Units.Length > 0 ? Units : Mph ? "imperial" : "game";
     /// <summary>Show the truck make (VOLVO ...) under the speed.</summary>
     public bool ShowMake { get; set; } = true;
     public string Host { get; set; } = "127.0.0.1:31377";
