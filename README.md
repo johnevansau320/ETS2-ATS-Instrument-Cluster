@@ -75,6 +75,10 @@ Command line (testing): `--config file.json`, `--host 127.0.0.1:31377`, `--demo`
 * "Average consumption" is the game's figure; "this trip" is measured by the cluster, so it starts empty (`--`) until you have driven a short way.
 * The cluster is drawn on a fixed 1280 x 720 canvas and scaled to the window, so it looks the same at any size.
 
+## Support
+
+These apps are free and stay free. If they've made your hauls better and you'd like to say thanks, you can [buy me a coffee](https://buymeacoffee.com/johnevansau320). More apps and mods: [johnevansau.com](https://johnevansau.com).
+
 ## License
 
 GNU Affero General Public License v3.0, see [LICENSE](LICENSE). ETS2 / Euro Truck Simulator 2 is a trademark of SCS Software; this project is not affiliated with or endorsed by SCS Software. No game data is included.
