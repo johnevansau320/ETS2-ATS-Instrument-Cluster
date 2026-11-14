@@ -27,7 +27,7 @@ import kotlin.math.sin
 
 /**
  * The instrument cluster, drawn on a fixed 1280 x 720 canvas that is scaled to fit the screen: speedometer with needle, gear, rev strip,
- * diesel and AdBlue gauges, consumption, range, cruise, ETA, clocks, odometer and trip, lamps and warnings. The layout is the same as the Windows app.
+ * diesel and AdBlue gauges, coolant and oil temperature gauges, consumption, range, cruise, ETA, clocks, odometer and trip, lamps and warnings. The layout is the same as the Windows app.
  */
 class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx) {
     companion object {
@@ -50,6 +50,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
     // smoothed values: the needle glides between telemetry updates
     private var dispSpeed = 0f; private var dispRpm = 0f; private var dispFuel = 0f; private var dispAdBlue = 0f
+    private var dispWater = 0f; private var dispOil = 0f
     private var lastFrame = 0L
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -82,6 +83,8 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         dispRpm = ease(dispRpm, max(0f, truck.rpm), 2f)
         dispFuel = ease(dispFuel, truck.fuelFraction, 0.001f)
         dispAdBlue = ease(dispAdBlue, truck.adBlueFraction, 0.001f)
+        dispWater = ease(dispWater, max(0f, truck.waterC), 0.05f)
+        dispOil = ease(dispOil, max(0f, truck.oilC), 0.05f)
         return moving
     }
 
@@ -295,11 +298,9 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
     private fun panels(c: Canvas) {
         val t = truck
-        // top corners: coolant and oil temperature
-        text(c, "COOLANT", 50f, 40f, 17f, DIM, 0, true)
-        text(c, temp(t.waterC), 50f, 72f, 34f, if (t.waterWarn) RED else WHITE, 0)
-        text(c, "OIL", DW - 50f, 40f, 17f, DIM, 2, true)
-        text(c, temp(t.oilC), DW - 50f, 72f, 34f, if (t.oilWarn) RED else WHITE, 2)
+        // top corners: coolant and oil temperature gauges
+        tempGauge(c, 116f, 90f, "COOLANT", dispWater, t.waterC, 105f, t.waterWarn)
+        tempGauge(c, DW - 116f, 90f, "OIL", dispOil, t.oilC, 120f, t.oilWarn)
 
         // left: consumption, trip consumption, range
         row(c, 50f, 190f, "AVERAGE CONSUMPTION", cons(t.fuelAvgLPerKm * 100.0), consUnit, WHITE, false)
@@ -324,6 +325,50 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         text(c, "%02d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)), 640f, 660f, 62f, WHITE, 1)
         text(c, "TRIP", DW - 330f, 622f, 16f, DIM, 2, true); text(c, num(dist(tripKm.toFloat())) + " " + distUnit, DW - 330f, 656f, 34f, WHITE, 2)
         text(c, "ODOMETER", DW - 50f, 622f, 16f, DIM, 2, true); text(c, num(dist(t.odoKm)) + " " + distUnit, DW - 50f, 656f, 34f, WHITE, 2)
+    }
+
+    /**
+     * A small round temperature gauge: 270-degree scale open at the bottom, red zone from redC, needle, reading in the middle
+     * and the name in the gap. The scale is 40-130 °C, or 100-260 °F with imperial units. Same as the Windows app.
+     */
+    private fun tempGauge(c: Canvas, cx: Float, cy: Float, name: String, shownC: Float, rawC: Float, redC: Float, warn: Boolean) {
+        val r = 64f
+        val lo = if (imp) 100f else 40f; val hi = if (imp) 260f else 130f
+        val minor = if (imp) 20 else 10; val major = if (imp) 40 else 30
+        fun u(cel: Float) = if (imp) cel * 9f / 5f + 32f else cel
+        fun a(v: Float) = 225f - 270f * ((v - lo) / (hi - lo)).coerceIn(0f, 1f)
+        fun q(angleDeg: Float, rad: Float): FloatArray {
+            val an = angleDeg * PI / 180
+            return floatArrayOf((cx + rad * cos(an)).toFloat(), (cy - rad * sin(an)).toFloat())
+        }
+        fun ring(a0: Float, a1: Float, color: Int) {
+            oval.set(cx - r, cy - r, cx + r, cy + r)
+            stroke.shader = null; stroke.color = color; stroke.strokeWidth = 6f; stroke.strokeCap = Paint.Cap.ROUND
+            c.drawArc(oval, -a0, a0 - a1, false, stroke)
+        }
+
+        val hot = warn || (rawC > 0 && rawC >= redC)
+        ring(225f, -45f, Color.rgb(24, 36, 46))
+        ring(a(u(redC)), -45f, Color.argb(200, 255, 59, 48))
+        var v = lo.toInt()
+        while (v <= hi.toInt()) {
+            val big = (v - lo.toInt()) % major == 0
+            val ta = a(v.toFloat())
+            line(c, q(ta, r - (if (big) 16f else 10f)), q(ta, r - 4f), if (big) WHITE else GREY, if (big) 2.6f else 1.6f)
+            v += minor
+        }
+        val l0 = q(225f, r + 4f); val l1 = q(-45f, r + 4f)
+        text(c, lo.toInt().toString(), l0[0] - 2f, l0[1] + 12f, 14f, DIM, 1, true)
+        text(c, hi.toInt().toString(), l1[0] + 2f, l1[1] + 12f, 14f, DIM, 1, true)
+
+        // needle: from just outside the reading to the scale, like the speed dial
+        if (rawC > 0) {
+            val na = a(u(shownC))
+            line(c, q(na, 30f), q(na, r - 2f), Color.argb(70, 255, 59, 48), 9f, true)
+            line(c, q(na, 30f), q(na, r - 2f), RED, 3.5f, true)
+        }
+        text(c, temp(rawC), cx, cy + 2f, 26f, if (hot) RED else WHITE, 1)
+        text(c, name, cx, cy + 50f, 15f, DIM, 1, true)
     }
 
     private fun row(c: Canvas, x: Float, y: Float, caption: String, value: String, unit: String, color: Int, right: Boolean) {

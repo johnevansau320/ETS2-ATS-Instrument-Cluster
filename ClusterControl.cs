@@ -6,7 +6,7 @@ namespace Ets2Cluster;
 
 /// <summary>
 /// The instrument cluster, drawn on a fixed 1280 x 720 canvas that is scaled to fit the window:
-/// speedometer with needle, gear, rev strip, fuel and AdBlue gauges, consumption, range, cruise, ETA, clocks, odometer and trip,
+/// speedometer with needle, gear, rev strip, fuel and AdBlue gauges, coolant and oil temperature gauges, consumption, range, cruise, ETA, clocks, odometer and trip,
 /// indicator lamps and warnings.
 /// </summary>
 public sealed class ClusterControl : FrameworkElement
@@ -23,7 +23,7 @@ public sealed class ClusterControl : FrameworkElement
     public string UpdateText = "";
 
     // smoothed values (the needle glides between telemetry updates)
-    double dispSpeed, dispRpm, dispFuel, dispAdBlue;
+    double dispSpeed, dispRpm, dispFuel, dispAdBlue, dispWater, dispOil;
 
     static Brush Fz(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
     static readonly Brush BgBrush = Fz(Color.FromRgb(3, 6, 10));
@@ -90,6 +90,8 @@ public sealed class ClusterControl : FrameworkElement
         Ease(ref dispRpm, Math.Max(0, T.RpmValue), 2);
         Ease(ref dispFuel, T.FuelFraction, 0.001);
         Ease(ref dispAdBlue, T.AdBlueFraction, 0.001);
+        Ease(ref dispWater, Math.Max(0, T.WaterC), 0.05);
+        Ease(ref dispOil, Math.Max(0, T.OilC), 0.05);
         return moving;
     }
 
@@ -269,11 +271,9 @@ public sealed class ClusterControl : FrameworkElement
     void Panels(DrawingContext dc)
     {
         var t = T;
-        // top corners: coolant and oil temperature
-        Draw(dc, "COOLANT", 50, 40, 17, Dim, 0, true);
-        Draw(dc, Temp(t.WaterC), 50, 72, 34, t.WaterWarn ? Red : White, 0);
-        Draw(dc, "OIL", DW - 50, 40, 17, Dim, 2, true);
-        Draw(dc, Temp(t.OilC), DW - 50, 72, 34, t.OilWarn ? Red : White, 2);
+        // top corners: coolant and oil temperature gauges
+        TempGauge(dc, 116, 90, "COOLANT", dispWater, t.WaterC, 105, t.WaterWarn);
+        TempGauge(dc, DW - 116, 90, "OIL", dispOil, t.OilC, 120, t.OilWarn);
 
         // left: consumption, trip consumption, range
         Row(dc, 50, 190, "AVERAGE CONSUMPTION", Cons(t.FuelAvgLPerKm * 100), ConsUnit, White, false);
@@ -297,6 +297,53 @@ public sealed class ClusterControl : FrameworkElement
         Draw(dc, "LOCAL TIME", 640, 612, 16, Dim, 1, true);
         Draw(dc, DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture), 640, 660, 62, White, 1);
         Draw(dc, "ODOMETER", DW - 50, 622, 16, Dim, 2, true); Draw(dc, Math.Round(Dist(t.OdoKm)).ToString(CultureInfo.InvariantCulture) + " " + DistUnit, DW - 50, 656, 34, White, 2);
+    }
+
+    /// <summary>
+    /// A small round temperature gauge: 270-degree scale open at the bottom, red zone from redC, needle, reading in the middle
+    /// and the name in the gap. The scale is 40-130 °C, or 100-260 °F with imperial units.
+    /// </summary>
+    void TempGauge(DrawingContext dc, double cx, double cy, string name, double shownC, float rawC, double redC, bool warn)
+    {
+        const double r = 64;
+        double lo = Imp ? 100 : 40, hi = Imp ? 260 : 130, minor = Imp ? 20 : 10, major = Imp ? 40 : 30;
+        double U(double c) => Imp ? c * 9 / 5 + 32 : c;
+        double A(double u) => 225 - 270 * Math.Clamp((u - lo) / (hi - lo), 0, 1);
+        Point Q(double angleDeg, double rad) { double a = angleDeg * Math.PI / 180; return new Point(cx + rad * Math.Cos(a), cy - rad * Math.Sin(a)); }
+        StreamGeometry Ring(double a0, double a1)
+        {
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                c.BeginFigure(Q(a0, r), false, false);
+                c.ArcTo(Q(a1, r), new Size(r, r), 0, Math.Abs(a1 - a0) > 180, a1 < a0 ? SweepDirection.Clockwise : SweepDirection.Counterclockwise, true, false);
+            }
+            g.Freeze();
+            return g;
+        }
+
+        bool hot = warn || (rawC > 0 && rawC >= redC);
+        dc.DrawGeometry(null, PenOf(Fz(Color.FromRgb(24, 36, 46)), 6, true), Ring(225, -45));
+        dc.DrawGeometry(null, PenOf(Fz(Color.FromArgb(200, 255, 59, 48)), 6, true), Ring(A(U(redC)), -45));
+        for (double u = lo; u <= hi + 0.01; u += minor)
+        {
+            bool big = Math.Abs((u - lo) % major) < 0.01;
+            double ta = A(u);
+            dc.DrawLine(PenOf(big ? White : Grey, big ? 2.6 : 1.6), Q(ta, r - (big ? 16 : 10)), Q(ta, r - 4));
+        }
+        var l0 = Q(225, r + 4); var l1 = Q(-45, r + 4);
+        Draw(dc, lo.ToString(CultureInfo.InvariantCulture), l0.X - 2, l0.Y + 12, 14, Dim, 1, true);
+        Draw(dc, hi.ToString(CultureInfo.InvariantCulture), l1.X + 2, l1.Y + 12, 14, Dim, 1, true);
+
+        // needle: drawn from just outside the reading to the scale, like the speed dial
+        if (rawC > 0)
+        {
+            double na = A(U(shownC));
+            dc.DrawLine(PenOf(Fz(Color.FromArgb(70, 255, 59, 48)), 9, true), Q(na, 30), Q(na, r - 2));
+            dc.DrawLine(PenOf(Red, 3.5, true), Q(na, 30), Q(na, r - 2));
+        }
+        Draw(dc, Temp(rawC), cx, cy + 2, 26, hot ? Red : White, 1);
+        Draw(dc, name, cx, cy + 50, 15, Dim, 1, true);
     }
 
     void Row(DrawingContext dc, double x, double y, string caption, string value, string unit, Brush b, bool right)
