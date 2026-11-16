@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 
@@ -117,14 +117,47 @@ public sealed class ClusterControl : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         double W = ActualWidth, H = ActualHeight;
-        dc.DrawRectangle(BgBrush, null, new Rect(0, 0, W, H));
-        if (W < 10 || H < 10) return;
+        if (W < 10 || H < 10) { dc.DrawRectangle(BgBrush, null, new Rect(0, 0, W, H)); return; }
         double s = Math.Min(W / DW, H / DH);
+        // dark bars where the window is not 16:9; the cluster area itself is left unpainted here,
+        // so the window (which is transparent) shows through outside the rounded top corners
+        var area = new Rect((W - DW * s) / 2, (H - DH * s) / 2, DW * s, DH * s);
+        dc.DrawGeometry(BgBrush, null, new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(new Rect(0, 0, W, H)), new RectangleGeometry(area)));
         dc.PushTransform(new TranslateTransform((W - DW * s) / 2, (H - DH * s) / 2));
         dc.PushTransform(new ScaleTransform(s, s));
-        dc.PushClip(new RectangleGeometry(new Rect(0, 0, DW, DH)));
+        dc.PushClip(Outline(0));
         Cluster(dc);
+        Frame(dc);
         dc.Pop(); dc.Pop(); dc.Pop();
+    }
+
+    const double Corner = 98;   // radius of the two rounded top corners (also the temperature gauges' centre height)
+
+    /// <summary>The cluster outline (rounded top corners, square bottom), inset by d.</summary>
+    static StreamGeometry Outline(double d)
+    {
+        double r = Math.Max(0, Corner - d), x0 = d, y0 = d, x1 = DW - d, y1 = DH - d;
+        var g = new StreamGeometry();
+        using (var c = g.Open())
+        {
+            c.BeginFigure(new Point(x0, y1), true, true);
+            c.LineTo(new Point(x0, y0 + r), true, true);
+            c.ArcTo(new Point(x0 + r, y0), new Size(r, r), 0, false, SweepDirection.Clockwise, true, true);
+            c.LineTo(new Point(x1 - r, y0), true, true);
+            c.ArcTo(new Point(x1, y0 + r), new Size(r, r), 0, false, SweepDirection.Clockwise, true, true);
+            c.LineTo(new Point(x1, y1), true, true);
+        }
+        g.Freeze();
+        return g;
+    }
+
+    /// <summary>Fine bevelled metal frame: a lit outer edge that darkens downwards and a shadowed inner edge, so it looks raised.</summary>
+    static void Frame(DrawingContext dc)
+    {
+        static Brush V(Color top, Color bottom) { var b = new LinearGradientBrush(top, bottom, new Point(0, 0), new Point(0, 1)); b.Freeze(); return b; }
+        dc.DrawGeometry(null, new Pen(V(Color.FromRgb(150, 162, 174), Color.FromRgb(40, 48, 56)), 6), Outline(3));          // bevel face
+        dc.DrawGeometry(null, new Pen(V(Color.FromRgb(215, 225, 235), Color.FromRgb(70, 80, 90)), 1.5), Outline(0.75));    // outer highlight
+        dc.DrawGeometry(null, new Pen(V(Color.FromRgb(8, 12, 16), Color.FromRgb(90, 102, 114)), 2.25), Outline(7.125));   // inner shadow
     }
 
     void Cluster(DrawingContext dc)
@@ -272,8 +305,10 @@ public sealed class ClusterControl : FrameworkElement
     {
         var t = T;
         // top corners: coolant and oil temperature gauges
-        TempGauge(dc, 116, 90, "COOLANT", dispWater, t.WaterC, 105, t.WaterWarn);
-        TempGauge(dc, DW - 116, 90, "OIL", dispOil, t.OilC, 120, t.OilWarn);
+        // centred over the DIESEL / ADBLUE labels (the top end of the fuel and AdBlue arcs)
+        double tx = P(163.5, R + 96).X;
+        TempGauge(dc, tx, Corner, "COOLANT", dispWater, t.WaterC, 105, t.WaterWarn);
+        TempGauge(dc, DW - tx, Corner, "OIL", dispOil, t.OilC, 120, t.OilWarn);
 
         // left: consumption, trip consumption, range
         Row(dc, 50, 190, "AVERAGE CONSUMPTION", Cons(t.FuelAvgLPerKm * 100), ConsUnit, White, false);

@@ -32,6 +32,7 @@ import kotlin.math.sin
 class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx) {
     companion object {
         const val DW = 1280f; const val DH = 720f
+        const val CORNER = 98f   // top-corner radius (also the temperature gauges' centre height)
         private const val CX = 640f; private const val CY = 440f
         private const val R = 330f   // radius of the speed dial
 
@@ -160,11 +161,37 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         val save = canvas.save()
         canvas.translate((w - DW * s) / 2, (h - DH * s) / 2)
         canvas.scale(s, s)
-        canvas.clipRect(0f, 0f, DW, DH)
+        canvas.clipPath(outline(0f))
         cluster(canvas)
+        frame(canvas)
         canvas.restoreToCount(save)
 
         if (moving) postInvalidateOnAnimation()
+    }
+
+    /** The cluster outline (rounded top corners, square bottom), inset by d. */
+    private fun outline(d: Float): Path {
+        val r = max(0f, CORNER - d); val x0 = d; val y0 = d; val x1 = DW - d; val y1 = DH - d
+        return Path().apply {
+            moveTo(x0, y1); lineTo(x0, y0 + r)
+            arcTo(RectF(x0, y0, x0 + 2 * r, y0 + 2 * r), 180f, 90f, false)
+            lineTo(x1 - r, y0)
+            arcTo(RectF(x1 - 2 * r, y0, x1, y0 + 2 * r), 270f, 90f, false)
+            lineTo(x1, y1); close()
+        }
+    }
+
+    /** Fine bevelled metal frame: a lit outer edge that darkens downwards and a shadowed inner edge, so it looks raised. */
+    private fun frame(c: Canvas) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+        fun edge(d: Float, width: Float, top: Int, bottom: Int) {
+            p.strokeWidth = width
+            p.shader = LinearGradient(0f, 0f, 0f, DH, top, bottom, Shader.TileMode.CLAMP)
+            c.drawPath(outline(d), p)
+        }
+        edge(3f, 6f, Color.rgb(150, 162, 174), Color.rgb(40, 48, 56))          // bevel face
+        edge(0.75f, 1.5f, Color.rgb(215, 225, 235), Color.rgb(70, 80, 90))    // outer highlight
+        edge(7.125f, 2.25f, Color.rgb(8, 12, 16), Color.rgb(90, 102, 114))    // inner shadow
     }
 
     private fun cluster(c: Canvas) {
@@ -299,8 +326,10 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
     private fun panels(c: Canvas) {
         val t = truck
         // top corners: coolant and oil temperature gauges
-        tempGauge(c, 116f, 90f, "COOLANT", dispWater, t.waterC, 105f, t.waterWarn)
-        tempGauge(c, DW - 116f, 90f, "OIL", dispOil, t.oilC, 120f, t.oilWarn)
+        // centred over the DIESEL / ADBLUE labels (the top end of the fuel and AdBlue arcs)
+        val tx = p(163.5f, R + 96f)[0]
+        tempGauge(c, tx, CORNER, "COOLANT", dispWater, t.waterC, 105f, t.waterWarn)
+        tempGauge(c, DW - tx, CORNER, "OIL", dispOil, t.oilC, 120f, t.oilWarn)
 
         // left: consumption, trip consumption, range
         row(c, 50f, 190f, "AVERAGE CONSUMPTION", cons(t.fuelAvgLPerKm * 100.0), consUnit, WHITE, false)
