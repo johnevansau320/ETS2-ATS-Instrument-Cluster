@@ -30,7 +30,7 @@ class MainActivity : Activity() {
         settings = Settings(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         view = ClusterView(this) { showMenu() }
-        view.units = settings.units; view.showMake = settings.showMake
+        view.units = settings.units; view.showMake = settings.showMake; view.style = settings.style; view.backlight = settings.backlight
         setContentView(view)
         client = TelemetryClient({ settings.host }, { tr -> ui.post { onTruck(tr) } }, { s -> ui.post { view.statusText = s; view.invalidate() } })
     }
@@ -46,7 +46,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         immersive()
-        view.units = settings.units; view.showMake = settings.showMake
+        view.units = settings.units; view.showMake = settings.showMake; view.style = settings.style; view.backlight = settings.backlight
         if (settings.host.equals("demo", true)) startDemo() else { demoRunning = false; client.start() }
         ui.post(clockTick)
         maybeCheckUpdate()
@@ -103,6 +103,8 @@ class MainActivity : Activity() {
             "PC address (" + settings.host.ifEmpty { "not set" } + ")",
             "Units: " + when (settings.units) { "metric" -> "metric (tap for imperial)"; "imperial" -> "imperial (tap for the game's own)"; else -> "same as the game (tap for metric)" },
             if (settings.showMake) "Truck name: shown (tap to hide)" else "Truck name: hidden (tap to show)",
+            "Style: " + (if (settings.style == "chrome") "Chrome" else "Classic"),
+            "Backlight colour (when the truck's lights are on): " + (ClusterView.BACKLIGHTS.firstOrNull { it.first == settings.backlight }?.second ?: "Cool white"),
             if (settings.checkUpdates) "Check for updates: on (tap to turn off)" else "Check for updates: off (tap to turn on)",
             "Reset trip",
             "Check for updates now",
@@ -115,14 +117,32 @@ class MainActivity : Activity() {
                     view.units = settings.units; view.invalidate()
                 }
                 2 -> { settings.showMake = !settings.showMake; view.showMake = settings.showMake; view.invalidate() }
-                3 -> {
+                3 -> chooseStyle()
+                4 -> chooseBacklight()
+                5 -> {
                     settings.checkUpdates = !settings.checkUpdates
                     if (settings.checkUpdates) maybeCheckUpdate() else { update = null; view.updateText = ""; view.invalidate() }
                 }
-                4 -> resetTrip()
-                5 -> maybeCheckUpdate(true)
+                6 -> resetTrip()
+                7 -> maybeCheckUpdate(true)
             }
         }.setNegativeButton("Close", null).show()
+    }
+
+    private fun chooseStyle() {
+        val ids = arrayOf("classic", "chrome")
+        AlertDialog.Builder(this).setTitle("Style")
+            .setSingleChoiceItems(arrayOf("Classic", "Chrome (padded surround, chrome bezel)"), ids.indexOf(settings.style).coerceAtLeast(0)) { d, i ->
+                settings.style = ids[i]; view.style = ids[i]; view.invalidate(); d.dismiss()
+            }.setNegativeButton("Close", null).show()
+    }
+
+    private fun chooseBacklight() {
+        val list = ClusterView.BACKLIGHTS
+        AlertDialog.Builder(this).setTitle("Backlight colour (when the truck's lights are on)")
+            .setSingleChoiceItems(list.map { it.second }.toTypedArray(), list.indexOfFirst { it.first == settings.backlight }.coerceAtLeast(0)) { d, i ->
+                settings.backlight = list[i].first; view.backlight = list[i].first; view.invalidate(); d.dismiss()
+            }.setNegativeButton("Close", null).show()
     }
 
     private fun askHost() {

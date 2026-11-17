@@ -17,7 +17,7 @@ class Truck {
     var fuelL = 0f; var fuelCapL = 0f; var fuelAvgLPerKm = 0f; var rangeKm = 0f; var adBlueL = 0f; var adBlueCapL = 0f; var odoKm = 0f
     var oilC = 0f; var waterC = 0f; var brakeC = 0f; var airPsi = 0f; var batteryV = 0f
     var parkBrake = false; var motorBrake = false; var engineOn = false; var wipers = false
-    var lowBeam = false; var highBeam = false; var beacon = false; var blinkerL = false; var blinkerR = false
+    var parking = false; var lowBeam = false; var highBeam = false; var beacon = false; var blinkerL = false; var blinkerR = false
     var retarder = 0; var retarderSteps = 0
     var airWarn = false; var oilWarn = false; var waterWarn = false; var batteryWarn = false; var fuelWarn = false; var adBlueWarn = false
     /** Game clock as minutes since midnight (-1 unknown). */
@@ -32,7 +32,7 @@ class Truck {
     fun signature(): String = listOf(
         connected, paused, ats, make, "%.1f".format(speedKmh), speedLimit, cruiseOn, "%.0f".format(cruiseKmh), (rpm / 5).toInt(), "%.0f".format(rpmMax), gear, shifter,
         "%.1f".format(fuelL), "%.1f".format(adBlueL), "%.3f".format(fuelAvgLPerKm), "%.0f".format(rangeKm), "%.1f".format(odoKm), "%.0f".format(waterC), "%.0f".format(oilC),
-        parkBrake, motorBrake, retarder, wipers, lowBeam, highBeam, beacon, blinkerL, blinkerR, airWarn, oilWarn, waterWarn, batteryWarn, fuelWarn, adBlueWarn,
+        parkBrake, motorBrake, retarder, wipers, parking, lowBeam, highBeam, beacon, blinkerL, blinkerR, airWarn, oilWarn, waterWarn, batteryWarn, fuelWarn, adBlueWarn,
         gameClockMin, "%.0f".format(etaMin), "%.0f".format(restMin),
     ).joinToString("|")
 }
@@ -69,7 +69,7 @@ object TelemetryParser {
         tr.oilC = t.optDouble("oilTemperature", 0.0).toFloat(); tr.waterC = t.optDouble("waterTemperature", 0.0).toFloat(); tr.brakeC = t.optDouble("brakeTemperature", 0.0).toFloat()
         tr.airPsi = t.optDouble("airPressure", 0.0).toFloat(); tr.batteryV = t.optDouble("batteryVoltage", 0.0).toFloat()
         tr.parkBrake = t.optBoolean("parkBrakeOn"); tr.motorBrake = t.optBoolean("motorBrakeOn"); tr.engineOn = t.optBoolean("engineOn"); tr.wipers = t.optBoolean("wipersOn")
-        tr.lowBeam = t.optBoolean("lightsBeamLowOn"); tr.highBeam = t.optBoolean("lightsBeamHighOn"); tr.beacon = t.optBoolean("lightsBeaconOn")
+        tr.parking = t.optBoolean("lightsParkingOn"); tr.lowBeam = t.optBoolean("lightsBeamLowOn"); tr.highBeam = t.optBoolean("lightsBeamHighOn"); tr.beacon = t.optBoolean("lightsBeaconOn")
         tr.blinkerL = t.optBoolean("blinkerLeftOn"); tr.blinkerR = t.optBoolean("blinkerRightOn")
         tr.retarder = t.optInt("retarderBrake"); tr.retarderSteps = t.optInt("retarderStepCount")
         tr.airWarn = t.optBoolean("airPressureWarningOn") || t.optBoolean("airPressureEmergencyOn"); tr.oilWarn = t.optBoolean("oilPressureWarningOn")

@@ -18,6 +18,14 @@ class Settings(ctx: Context) {
     var showMake: Boolean
         get() = p.getBoolean("make", true)
         set(v) { p.edit().putBoolean("make", v).apply() }
+    /** "classic" or "chrome" (upholstered surround, chrome bezel and rings). */
+    var style: String
+        get() = p.getString("style", "classic") ?: "classic"
+        set(v) { p.edit().putString("style", v).apply() }
+    /** Gauge backlight when the truck's lights are on: "white", "red", "amber", "green" or "off". */
+    var backlight: String
+        get() = p.getString("backlight", "white") ?: "white"
+        set(v) { p.edit().putString("backlight", v).apply() }
     var checkUpdates: Boolean
         get() = p.getBoolean("updates", true)
         set(v) { p.edit().putBoolean("updates", v).apply() }

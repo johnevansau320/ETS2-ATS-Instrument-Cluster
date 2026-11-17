@@ -18,6 +18,10 @@ public sealed class Settings
     [System.Text.Json.Serialization.JsonIgnore] public string UnitChoice => Units.Length > 0 ? Units : Mph ? "imperial" : "game";
     /// <summary>Show the truck make (VOLVO ...) under the speed.</summary>
     public bool ShowMake { get; set; } = true;
+    /// <summary>Look of the cluster: "classic" (flat, thin frame) or "chrome" (upholstered surround, chrome bezel and rings).</summary>
+    public string Style { get; set; } = "classic";
+    /// <summary>Gauge backlight when the truck's lights are on: "white", "red", "amber", "green" or "off".</summary>
+    public string Backlight { get; set; } = "white";
     public string Host { get; set; } = "127.0.0.1:31377";
     /// <summary>Look for a newer release on GitHub now and then (about once a day). Nothing is downloaded or installed by it.</summary>
     public bool CheckUpdates { get; set; } = true;

@@ -38,12 +38,18 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
         private val BG = Color.rgb(3, 6, 10)
         private val WHITE = Color.rgb(236, 241, 246); private val DIM = Color.rgb(124, 136, 148); private val GREY = Color.rgb(58, 68, 79)
+        /** Backlight choices: id, menu label, colour. */
+        val BACKLIGHTS = listOf(Triple("white", "Cool white", Color.rgb(170, 215, 255)), Triple("red", "Red", Color.rgb(255, 74, 48)),
+            Triple("amber", "Amber", Color.rgb(255, 160, 40)), Triple("green", "Green", Color.rgb(90, 230, 120)), Triple("off", "Off", Color.BLACK))
         private val GREEN = Color.rgb(56, 214, 108); private val AMBER = Color.rgb(255, 176, 46); private val RED = Color.rgb(255, 59, 48); private val BLUE = Color.rgb(58, 160, 255)
     }
 
     var truck = Truck()
     var units = "game"
     var showMake = true
+    var style = "classic"
+    var backlight = "white"
+    private val chrome get() = style == "chrome"
     var tripKm = 0.0
     var tripLPer100 = -1.0
     var statusText = ""
@@ -52,6 +58,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
     // smoothed values: the needle glides between telemetry updates
     private var dispSpeed = 0f; private var dispRpm = 0f; private var dispFuel = 0f; private var dispAdBlue = 0f
     private var dispWater = 0f; private var dispOil = 0f
+    private var dispLight = 0f   // instrument backlight, 0 = off .. 1 = on (follows the truck's lights)
     private var lastFrame = 0L
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -86,6 +93,10 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         dispAdBlue = ease(dispAdBlue, truck.adBlueFraction, 0.001f)
         dispWater = ease(dispWater, max(0f, truck.waterC), 0.05f)
         dispOil = ease(dispOil, max(0f, truck.oilC), 0.05f)
+        // instrument backlight fades in and out over about half a second
+        val lt = if (backlight != "off" && (truck.parking || truck.lowBeam || truck.highBeam)) 1f else 0f
+        val ld = lt - dispLight
+        if (abs(ld) > 0.004f) { dispLight += ld * (1 - exp(-dt * 6.0)).toFloat(); moving = true } else if (ld != 0f) { dispLight = lt; moving = true }
         return moving
     }
 
@@ -147,6 +158,33 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         c.drawRoundRect(box, rad, rad, stroke)
     }
 
+    // ------------------------------------------------------------------------------------------ backlight
+
+    /** The temperature gauges sit over the DIESEL / ADBLUE labels (the top end of the fuel and AdBlue arcs). */
+    private val tempX get() = p(163.5f, R + 96f)[0]
+    private val backColor get() = BACKLIGHTS.firstOrNull { it.first == backlight && it.first != "off" }?.third ?: BACKLIGHTS[0].third
+    private fun back(a: Float) = Color.argb((a * dispLight).roundToInt().coerceIn(0, 255), Color.red(backColor), Color.green(backColor), Color.blue(backColor))
+    private fun mix(a: Int, b: Int, t: Float) = Color.rgb((Color.red(a) + (Color.red(b) - Color.red(a)) * t).toInt(),
+        (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(), (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t).toInt())
+    // unlit ticks and numbers brighten towards these, tinted by the backlight colour
+    private val litTick get() = mix(Color.rgb(140, 146, 152), backColor, 0.35f)
+    private val litNumber get() = mix(Color.rgb(214, 220, 226), backColor, 0.2f)
+    private fun marking(off: Int, lit: Int) = if (dispLight < 0.01f) off else mix(off, lit, dispLight)
+
+    /** Soft light shining through a dial from behind, strongest just inside the scale. */
+    private fun backlightFace(c: Canvas, cx: Float, cy: Float, r: Float) {
+        if (dispLight < 0.01f) return
+        fill.shader = RadialGradient(cx, cy, r, intArrayOf(back(0f), back(14f), back(0f), back(52f), back(0f)), floatArrayOf(0f, 0.45f, 0.62f, 0.9f, 1f), Shader.TileMode.CLAMP)
+        c.drawCircle(cx, cy, r, fill)
+        fill.shader = null
+    }
+
+    /** Halo under a marking so it looks lit from behind. */
+    private fun halo(c: Canvas, a: FloatArray, b: FloatArray, w: Float) {
+        if (dispLight < 0.01f) return
+        line(c, a, b, back(55f), w + 6f, true)
+    }
+
     // ------------------------------------------------------------------------------------------ drawing
 
     override fun onDraw(canvas: Canvas) {
@@ -161,9 +199,23 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         val save = canvas.save()
         canvas.translate((w - DW * s) / 2, (h - DH * s) / 2)
         canvas.scale(s, s)
-        canvas.clipPath(outline(0f))
-        cluster(canvas)
-        frame(canvas)
+        if (chrome) {
+            canvas.restoreToCount(save)
+            canvas.drawBitmap(ChromeStyle.layer(width, height, tempX, CORNER), 0f, 0f, null)
+            canvas.save()
+            canvas.translate((w - DW * s) / 2, (h - DH * s) / 2)
+            canvas.scale(s, s)
+            canvas.clipPath(ChromeStyle.insetPath(ChromeStyle.SCREEN_INSET))
+            val inner = canvas.save()
+            canvas.translate(ChromeStyle.CX0, ChromeStyle.CY0); canvas.scale(ChromeStyle.CS, ChromeStyle.CS)
+            cluster(canvas)
+            canvas.restoreToCount(inner)
+            ChromeStyle.sheen(canvas)
+        } else {
+            canvas.clipPath(outline(0f))
+            cluster(canvas)
+            frame(canvas)
+        }
         canvas.restoreToCount(save)
 
         if (moving) postInvalidateOnAnimation()
@@ -203,9 +255,11 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         fun ang(value: Float) = 200f - 220f * (value / max).coerceIn(0f, 1.03f)
 
         // background glow
-        fill.shader = RadialGradient(640f, 446f, 780f, Color.rgb(12, 28, 38), Color.rgb(3, 6, 10), Shader.TileMode.CLAMP)
-        c.drawRect(0f, 0f, DW, DH, fill)
-        fill.shader = null
+        if (!chrome) {
+            fill.shader = RadialGradient(640f, 446f, 780f, Color.rgb(12, 28, 38), Color.rgb(3, 6, 10), Shader.TileMode.CLAMP)
+            c.drawRect(0f, 0f, DW, DH, fill)
+            fill.shader = null
+        }
 
         // amber glow beside the dial centre: bright while over the speed limit
         val a = if (over) 120 else 22
@@ -216,11 +270,14 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         }
 
         // dial ring
-        arc(c, R + 16, 204f, -24f, Color.rgb(20, 34, 44), 8f)
+        if (!chrome) arc(c, R + 16, 204f, -24f, Color.rgb(20, 34, 44), 8f)
 
         // fuel (left) and AdBlue (right) gauges hugging the dial
         gauge(c, 163.5f, 200f, dispFuel, if (t.fuelWarn) RED else GREEN, true)
         gauge(c, 16.5f, -20f, dispAdBlue, if (t.adBlueWarn) RED else BLUE, false)
+
+        // backlight behind the dial (not below the bottom row)
+        c.save(); c.clipRect(0f, 0f, DW, 594f); backlightFace(c, CX, CY, R + 6); c.restore()
 
         // ticks and numbers
         val labelFrom = if (imp) 40 else 60
@@ -229,8 +286,9 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
             val major = i % 10 == 0
             val an = ang(i.toFloat())
             val lit = i <= v
-            line(c, p(an, R - (if (major) 38f else 20f)), p(an, R), if (lit) WHITE else GREY, if (major) 3.6f else 2f)
-            if (major && i >= labelFrom) { val q = p(an, R - 72f); text(c, i.toString(), q[0], q[1], 30f, if (lit) WHITE else DIM) }
+            halo(c, p(an, R - (if (major) 38f else 20f)), p(an, R), if (major) 3.6f else 2f)
+            line(c, p(an, R - (if (major) 38f else 20f)), p(an, R), if (lit) WHITE else marking(GREY, litTick), if (major) 3.6f else 2f)
+            if (major && i >= labelFrom) { val q = p(an, R - 72f); text(c, i.toString(), q[0], q[1], 30f, if (lit) WHITE else marking(DIM, litNumber)) }
             i += 2
         }
 
@@ -246,8 +304,10 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
         // needle
         val na = ang(v)
+        if (chrome) line(c, p(na, R - 150f), p(na, R + 2f), Color.argb(40, 255, 59, 48), 26f, true)
         line(c, p(na, R - 150f), p(na, R + 2f), Color.argb(70, 255, 59, 48), 16f, true)
-        line(c, p(na, R - 150f), p(na, R + 2f), RED, 6f, true)
+        line(c, p(na, R - 150f), p(na, R + 2f), RED, if (chrome) 7f else 6f, true)
+        if (chrome) line(c, p(na, R - 146f), p(na, R - 2f), Color.argb(200, 255, 190, 170), 1.6f, true)
 
         // speed
         val speedText = num(max(0f, v))
@@ -292,9 +352,16 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
 
     private fun gauge(c: Canvas, a0: Float, a1: Float, fraction: Float, color: Int, left: Boolean) {
         val r = R + 56f
-        arc(c, r, a0, a1, Color.rgb(24, 36, 46), 12f)
+        if (!chrome) arc(c, r, a0, a1, Color.rgb(24, 36, 46), 12f)
         val fa = a1 + (a0 - a1) * fraction.coerceIn(0f, 1f)   // fills from the bottom end (a1) upwards
-        if (fraction > 0.004f) arc(c, r, a1, fa, color, 12f)
+        if (fraction > 0.004f) {
+            if (chrome) {
+                // glowing liquid in a glass tube, with a highlight along the glass
+                arc(c, r, a1, fa, Color.argb(60, Color.red(color), Color.green(color), Color.blue(color)), 22f)
+                arc(c, r, a1, fa, color, 12f)
+                arc(c, r - 2.5f, a1, fa, Color.argb(110, 255, 255, 255), 2.4f)
+            } else arc(c, r, a1, fa, color, 12f)
+        }
         val top = p(a0, r + 40f); val mid = p((a0 + a1) / 2, r + 36f); val bot = p(a1, r + 34f)
         text(c, if (left) "DIESEL" else defName, top[0], top[1] - 40f, 16f, DIM, 1, true)
         text(c, num(fraction * 100f) + "%", top[0], top[1] - 14f, 28f, color, 1)
@@ -327,7 +394,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         val t = truck
         // top corners: coolant and oil temperature gauges
         // centred over the DIESEL / ADBLUE labels (the top end of the fuel and AdBlue arcs)
-        val tx = p(163.5f, R + 96f)[0]
+        val tx = tempX
         tempGauge(c, tx, CORNER, "COOLANT", dispWater, t.waterC, 105f, t.waterWarn)
         tempGauge(c, DW - tx, CORNER, "OIL", dispOil, t.oilC, 120f, t.oilWarn)
 
@@ -377,18 +444,22 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         }
 
         val hot = warn || (rawC > 0 && rawC >= redC)
+        backlightFace(c, cx, cy, r + 6)
         ring(225f, -45f, Color.rgb(24, 36, 46))
         ring(a(u(redC)), -45f, Color.argb(200, 255, 59, 48))
         var v = lo.toInt()
         while (v <= hi.toInt()) {
             val big = (v - lo.toInt()) % major == 0
             val ta = a(v.toFloat())
-            line(c, q(ta, r - (if (big) 16f else 10f)), q(ta, r - 4f), if (big) WHITE else GREY, if (big) 2.6f else 1.6f)
+            halo(c, q(ta, r - (if (big) 16f else 10f)), q(ta, r - 4f), if (big) 2.6f else 1.6f)
+            line(c, q(ta, r - (if (big) 16f else 10f)), q(ta, r - 4f), if (big) WHITE else marking(GREY, litTick), if (big) 2.6f else 1.6f)
             v += minor
         }
-        val l0 = q(225f, r + 4f); val l1 = q(-45f, r + 4f)
-        text(c, lo.toInt().toString(), l0[0] - 2f, l0[1] + 12f, 14f, DIM, 1, true)
-        text(c, hi.toInt().toString(), l1[0] + 2f, l1[1] + 12f, 14f, DIM, 1, true)
+        // scale ends: just below the track, or outside the chrome rim in the Chrome style
+        val lr = if (chrome) r + 28f else r + 4f; val dy = if (chrome) 4f else 12f
+        val l0 = q(225f, lr); val l1 = q(-45f, lr)
+        text(c, lo.toInt().toString(), l0[0] - 2f, l0[1] + dy, 14f, DIM, 1, true)
+        text(c, hi.toInt().toString(), l1[0] + 2f, l1[1] + dy, 14f, DIM, 1, true)
 
         // needle: from just outside the reading to the scale, like the speed dial
         if (rawC > 0) {

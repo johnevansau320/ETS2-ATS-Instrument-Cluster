@@ -18,7 +18,7 @@ public sealed class Truck
     public int Gear, ForwardGears; public string Shifter = "";
     public float FuelL, FuelCapL, FuelAvgLPerKm, RangeKm, AdBlueL, AdBlueCapL, OdoKm;
     public float OilC, WaterC, BrakeC, AirPsi, BatteryV;
-    public bool ParkBrake, MotorBrake, EngineOn, Wipers, LowBeam, HighBeam, Beacon, BlinkerL, BlinkerR;
+    public bool ParkBrake, MotorBrake, EngineOn, Wipers, Parking, LowBeam, HighBeam, Beacon, BlinkerL, BlinkerR;
     public int Retarder, RetarderSteps;
     public bool AirWarn, OilWarn, WaterWarn, BatteryWarn, FuelWarn, AdBlueWarn;
     public DateTime GameTime = DateTime.MinValue;
@@ -27,7 +27,7 @@ public sealed class Truck
     /// <summary>Changes only when something visible changes, so the cluster is redrawn only when needed.</summary>
     public string Signature() => string.Join("|", Connected, Paused, Ats, Make, SpeedKmh.ToString("0.0"), SpeedLimit, CruiseOn, CruiseKmh.ToString("0"), (int)(RpmValue / 5), RpmMax.ToString("0"), Gear, Shifter,
         FuelL.ToString("0.0"), AdBlueL.ToString("0.0"), FuelAvgLPerKm.ToString("0.000"), RangeKm.ToString("0"), OdoKm.ToString("0.0"), WaterC.ToString("0"), OilC.ToString("0"),
-        ParkBrake, MotorBrake, Retarder, Wipers, LowBeam, HighBeam, Beacon, BlinkerL, BlinkerR, AirWarn, OilWarn, WaterWarn, BatteryWarn, FuelWarn, AdBlueWarn,
+        ParkBrake, MotorBrake, Retarder, Wipers, Parking, LowBeam, HighBeam, Beacon, BlinkerL, BlinkerR, AirWarn, OilWarn, WaterWarn, BatteryWarn, FuelWarn, AdBlueWarn,
         GameTime.ToString("yyyyMMddHHmm"), EtaMin.ToString("0"), RestMin.ToString("0"));
 
     public float FuelFraction => FuelCapL > 0 ? Math.Clamp(FuelL / FuelCapL, 0, 1) : 0;
@@ -62,7 +62,7 @@ public static class TelemetryParser
             OilC = (float)Num(t, "oilTemperature"), WaterC = (float)Num(t, "waterTemperature"), BrakeC = (float)Num(t, "brakeTemperature"),
             AirPsi = (float)Num(t, "airPressure"), BatteryV = (float)Num(t, "batteryVoltage"),
             ParkBrake = Bool(t, "parkBrakeOn"), MotorBrake = Bool(t, "motorBrakeOn"), EngineOn = Bool(t, "engineOn"), Wipers = Bool(t, "wipersOn"),
-            LowBeam = Bool(t, "lightsBeamLowOn"), HighBeam = Bool(t, "lightsBeamHighOn"), Beacon = Bool(t, "lightsBeaconOn"),
+            Parking = Bool(t, "lightsParkingOn"), LowBeam = Bool(t, "lightsBeamLowOn"), HighBeam = Bool(t, "lightsBeamHighOn"), Beacon = Bool(t, "lightsBeaconOn"),
             BlinkerL = Bool(t, "blinkerLeftOn"), BlinkerR = Bool(t, "blinkerRightOn"),
             Retarder = (int)Num(t, "retarderBrake"), RetarderSteps = (int)Num(t, "retarderStepCount"),
             AirWarn = Bool(t, "airPressureWarningOn") || Bool(t, "airPressureEmergencyOn"), OilWarn = Bool(t, "oilPressureWarningOn"),

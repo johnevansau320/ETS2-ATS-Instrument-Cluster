@@ -102,7 +102,8 @@ public sealed class ClusterWindow : Window
     static Truck DemoTruck(string? state)
     {
         var t = DemoBase();
-        if (state == "over") { t.SpeedKmh = 98; t.SpeedLimit = 90; t.RpmValue = 1480; t.Gear = 12; t.BlinkerR = false; t.HighBeam = true; }
+        if (state == "lightsoff") { t.LowBeam = false; t.Parking = false; t.HighBeam = false; }
+        else if (state == "over") { t.SpeedKmh = 98; t.SpeedLimit = 90; t.RpmValue = 1480; t.Gear = 12; t.BlinkerR = false; t.HighBeam = true; }
         else if (state == "warn") { t.SpeedKmh = 42; t.SpeedLimit = 50; t.CruiseOn = false; t.RpmValue = 1750; t.Gear = 7; t.FuelL = 150; t.RangeKm = 410; t.ParkBrake = false; t.MotorBrake = true; t.Retarder = 2; t.FuelWarn = true; t.AirWarn = true; t.Wipers = true; t.Beacon = true; t.BlinkerL = true; t.BlinkerR = false; t.WaterC = 101; t.AdBlueL = 6; t.AdBlueWarn = true; }
         return t;
     }
@@ -194,6 +195,26 @@ public sealed class ClusterWindow : Window
             unitItems.Add((it, id)); unit.Items.Add(it);
         }
         m.Items.Add(unit);
+
+        var style = new MenuItem { Header = "Style" };
+        var styleItems = new List<(MenuItem, string)>();
+        foreach (var (id, label) in new[] { ("classic", "Classic"), ("chrome", "Chrome (padded surround, chrome bezel)") })
+        {
+            var it = Item(label, () => { }, true, (cfg.Style == "chrome" ? "chrome" : "classic") == id);
+            it.Click += (_, _) => { cfg.Style = id; foreach (var (o, oid) in styleItems) o.IsChecked = oid == id; cfg.Save(); dirty = true; view.InvalidateVisual(); };
+            styleItems.Add((it, id)); style.Items.Add(it);
+        }
+        m.Items.Add(style);
+
+        var back = new MenuItem { Header = "Backlight colour (when the truck's lights are on)" };
+        var backItems = new List<(MenuItem, string)>();
+        foreach (var (id, label, _) in ClusterControl.Backlights)
+        {
+            var it = Item(label, () => { }, true, cfg.Backlight == id);
+            it.Click += (_, _) => { cfg.Backlight = id; foreach (var (o, oid) in backItems) o.IsChecked = oid == id; cfg.Save(); dirty = true; view.InvalidateVisual(); };
+            backItems.Add((it, id)); back.Items.Add(it);
+        }
+        m.Items.Add(back);
 
         var make = Item("Show the truck make", () => { }, true, cfg.ShowMake);
         make.Click += (_, _) => { cfg.ShowMake = make.IsChecked; cfg.Save(); dirty = true; view.InvalidateVisual(); };

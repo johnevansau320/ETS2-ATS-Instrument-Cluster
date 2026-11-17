@@ -4,6 +4,8 @@ A stand-alone digital instrument cluster for Euro Truck Simulator 2 and American
 
 ![The cluster with demonstration values](docs/cluster-demo.png)
 
+![The Chrome style with the red backlight](docs/cluster-chrome.png)
+
 It reads the live truck data from the **TruckSim GPS Telemetry Server** (default `127.0.0.1:31377`), the same source the [ETS2-ATS GPS](https://github.com/johnevansau320/ETS2-ATS-GPS-Win) apps use. It does not touch the game and sends nothing to it.
 
 **User guide:** [ETS2-Instrument-Cluster-Guide.pdf](docs/ETS2-Instrument-Cluster-Guide.pdf) (installing, reading the cluster, the menu, using it with the GPS, the Android version, troubleshooting).
@@ -27,6 +29,8 @@ Needs Windows 10 or 11 (64-bit). Nothing else to install: the program carries th
 * **Average consumption** (the game's figure), **this trip** (measured since the trip was reset), **range**, **cruise setting**, **arrival time (ETA)** and **speed limit**.
 * Round **coolant** and **oil temperature** gauges at the top, above the diesel and AdBlue readings (new in 1.6.0): a needle on a 40-130 °C scale (100-260 °F in imperial units) with a red zone from 105 °C for coolant and 120 °C for oil, and the reading in the middle, which turns red in the red zone or when the game raises a warning.
 * A fine bevelled **frame** with rounded top corners (new in 1.6.1). On Windows the corners outside the frame are see-through.
+* Two **styles** (new in 1.7.0): **Classic**, or **Chrome**, with a dark upholstered padding around a polished chrome bezel, chrome rings round the dial and the temperature gauges, and glass-tube fuel gauges.
+* A **gauge backlight** (new in 1.7.0): when the truck's parking lights or headlights are on, the dial and the temperature gauges light up softly, like a real cluster at night. Choose cool white, red, amber or green, or switch it off.
 * **Game time**, **time until you must rest**, the PC's **local time** in large digits in the middle of the bottom row, **trip** distance and **odometer**.
 * Lamps: both turn signals, low and high beam; tags for the parking brake, engine brake, retarder step, wipers, beacon and the warnings (low fuel and low AdBlue are worked out from the tank levels, at 15 %) (air pressure, oil pressure, coolant, battery, low fuel, low AdBlue).
 * The truck make under the speed (VOLVO, SCANIA ...), which can be switched off.
@@ -35,7 +39,7 @@ Needs Windows 10 or 11 (64-bit). Nothing else to install: the program carries th
 
 The same cluster, full screen, for an Android 7.0+ tablet or phone on the same Wi-Fi as the game PC. Download **`Ets2Cluster-<version>.apk`** from the [Releases](../../releases) page and open it (Android asks to allow installs from your browser or file manager). Then long-press the cluster, choose **PC address** and enter the game PC's address (for example `192.168.1.20`; port 31377 is assumed). Enter `demo` to see made-up values without the game. The PC's firewall must allow port 31377.
 
-The menu (long-press) has the PC address, km or miles, show the truck name, reset trip and the update check. The local time at the bottom is the tablet's clock. The app is signed with a development key (not on Google Play), so Android or Play Protect may ask for confirmation; the release page lists the SHA-256 checksum. The source is in [`android/`](android) (plain Android APIs, no third-party libraries): `gradle testDebugUnitTest assembleDebug`.
+The menu (long-press) has the PC address, units, show the truck name, the style (Classic or Chrome), the backlight colour, reset trip and the update check. The local time at the bottom is the tablet's clock. The app is signed with a development key (not on Google Play), so Android or Play Protect may ask for confirmation; the release page lists the SHA-256 checksum. The source is in [`android/`](android) (plain Android APIs, no third-party libraries): `gradle testDebugUnitTest assembleDebug`.
 
 ## Using it
 
@@ -47,7 +51,7 @@ The menu (long-press) has the PC address, km or miles, show the truck name, rese
 | Full screen | Double-click, or **F11** (Esc to leave) |
 | Always on top | Right-click > Always on top (on by default). The game must be windowed or borderless for another window to show above it |
 | Minimize / restore | Right-click > Minimize, or by voice through the [ETS2-ATS GPS](https://github.com/johnevansau320/ETS2-ATS-GPS-Win) Windows app 1.12.0+: *minimize* / *restore* (the GPS and the cluster together) or *minimize the cluster* / *restore the cluster* |
-| Menu | Right-click: always on top, opacity, size presets, units (same as the game, metric or imperial), show the make, reset trip, telemetry server address, reset window, update checks, minimize, close |
+| Menu | Right-click: always on top, opacity, size presets, units (same as the game, metric or imperial), show the make, style (Classic or Chrome), backlight colour, reset trip, telemetry server address, reset window, update checks, minimize, close |
 
 The position, size, opacity and options are remembered in `%APPDATA%\ETS2-Cluster\cluster.json`. The trip counter starts the first time the cluster sees the truck; **Reset trip** restarts the trip distance and the trip consumption. Refuelling is ignored when working out the trip consumption.
 
@@ -55,7 +59,7 @@ The position, size, opacity and options are remembered in `%APPDATA%\ETS2-Cluste
 
 The cluster looks for a newer release on GitHub a few seconds after it starts and then about once a day. When there is one, a small notice appears at the bottom of the cluster; right-click it to open the download page, or to **Skip this version**. **Check for updates now...** looks immediately, and **Check for updates automatically** (on by default) switches the checks off.
 
-Nothing is downloaded or installed for you. The check is one small request to pi.github.com, which sees your IP address like any web page does; the cluster sends no information about you or your PC, and it only ever opens a page on github.com. Offline, it does nothing.
+Nothing is downloaded or installed for you. The check is one small request to api.github.com, which sees your IP address like any web page does; the cluster sends no information about you or your PC, and it only ever opens a page on github.com. Offline, it does nothing.
 
 ## Building
 
@@ -68,7 +72,7 @@ build-portable.ps1     the portable zip: installer\Output\Ets2Cluster-portable-<
 install.ps1            installs without the setup program (Start Menu shortcut; -NoPrompt, -Autostart)
 ```
 
-Command line (testing): `--config file.json`, `--host 127.0.0.1:31377`, `--demo` (made-up values, no game needed; `--demo-state over|warn` for other states), `--snapshot out.png` (draws the cluster to a picture and quits).
+Command line (testing): `--config file.json`, `--host 127.0.0.1:31377`, `--demo` (made-up values, no game needed; `--demo-state over|warn|lightsoff` for other states), `--snapshot out.png` (draws the cluster to a picture and quits).
 
 ## Notes
 

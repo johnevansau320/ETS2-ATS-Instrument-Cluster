@@ -9,7 +9,7 @@ namespace Ets2Cluster;
 /// speedometer with needle, gear, rev strip, fuel and AdBlue gauges, coolant and oil temperature gauges, consumption, range, cruise, ETA, clocks, odometer and trip,
 /// indicator lamps and warnings.
 /// </summary>
-public sealed class ClusterControl : FrameworkElement
+public sealed partial class ClusterControl : FrameworkElement
 {
     public const double DW = 1280, DH = 720;
     static readonly Point C = new(640, 440);
@@ -24,6 +24,7 @@ public sealed class ClusterControl : FrameworkElement
 
     // smoothed values (the needle glides between telemetry updates)
     double dispSpeed, dispRpm, dispFuel, dispAdBlue, dispWater, dispOil;
+    double dispLight;   // instrument backlight, 0 = off .. 1 = on (follows the truck's lights)
 
     static Brush Fz(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
     static readonly Brush BgBrush = Fz(Color.FromRgb(3, 6, 10));
@@ -92,6 +93,9 @@ public sealed class ClusterControl : FrameworkElement
         Ease(ref dispAdBlue, T.AdBlueFraction, 0.001);
         Ease(ref dispWater, Math.Max(0, T.WaterC), 0.05);
         Ease(ref dispOil, Math.Max(0, T.OilC), 0.05);
+        // instrument backlight fades in and out over about half a second
+        double lt = Cfg.Backlight != "off" && (T.Parking || T.LowBeam || T.HighBeam) ? 1 : 0, ld = lt - dispLight;
+        if (Math.Abs(ld) > 0.004) { dispLight += ld * (1 - Math.Exp(-dt * 6)); moving = true; } else if (ld != 0) { dispLight = lt; moving = true; }
         return moving;
     }
 
@@ -125,10 +129,15 @@ public sealed class ClusterControl : FrameworkElement
         dc.DrawGeometry(BgBrush, null, new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(new Rect(0, 0, W, H)), new RectangleGeometry(area)));
         dc.PushTransform(new TranslateTransform((W - DW * s) / 2, (H - DH * s) / 2));
         dc.PushTransform(new ScaleTransform(s, s));
-        dc.PushClip(Outline(0));
-        Cluster(dc);
-        Frame(dc);
-        dc.Pop(); dc.Pop(); dc.Pop();
+        if (Chrome) RenderChrome(dc);
+        else
+        {
+            dc.PushClip(Outline(0));
+            Cluster(dc);
+            Frame(dc);
+            dc.Pop();
+        }
+        dc.Pop(); dc.Pop();
     }
 
     const double Corner = 98;   // radius of the two rounded top corners (also the temperature gauges' centre height)
@@ -160,6 +169,43 @@ public sealed class ClusterControl : FrameworkElement
         dc.DrawGeometry(null, new Pen(V(Color.FromRgb(8, 12, 16), Color.FromRgb(90, 102, 114)), 2.25), Outline(7.125));   // inner shadow
     }
 
+    // ------------------------------------------------------------------------------------------ backlight
+
+    public static readonly (string Id, string Label, Color Color)[] Backlights =
+    {
+        ("white", "Cool white", Color.FromRgb(170, 215, 255)), ("red", "Red", Color.FromRgb(255, 74, 48)),
+        ("amber", "Amber", Color.FromRgb(255, 160, 40)), ("green", "Green", Color.FromRgb(90, 230, 120)), ("off", "Off", Colors.Black),
+    };
+    Color BackColor { get { foreach (var b in Backlights) if (b.Id == Cfg.Backlight && b.Id != "off") return b.Color; return Backlights[0].Color; } }
+    // unlit ticks and numbers brighten towards these, tinted by the backlight colour
+    Color LitTick => Mix(Color.FromRgb(140, 146, 152), BackColor, 0.35);
+    Color LitNumber => Mix(Color.FromRgb(214, 220, 226), BackColor, 0.2);
+    Color Back(double a) => Color.FromArgb((byte)Math.Clamp(a * dispLight, 0, 255), BackColor.R, BackColor.G, BackColor.B);
+    static Color Mix(Color a, Color b, double t) => Color.FromRgb((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
+    /// <summary>Unlit markings brighten when the backlight is on.</summary>
+    Brush Marking(Brush off, Color lit) => dispLight < 0.01 || off is not SolidColorBrush sc ? off : Fz(Mix(sc.Color, lit, dispLight));
+
+    /// <summary>Soft light shining through the dial from behind, strongest just inside the scale.</summary>
+    void BacklightFace(DrawingContext dc, Point c, double r)
+    {
+        if (dispLight < 0.01) return;
+        var b = new RadialGradientBrush();
+        b.GradientStops.Add(new GradientStop(Back(0), 0));
+        b.GradientStops.Add(new GradientStop(Back(14), 0.45));
+        b.GradientStops.Add(new GradientStop(Back(0), 0.62));
+        b.GradientStops.Add(new GradientStop(Back(52), 0.9));
+        b.GradientStops.Add(new GradientStop(Back(0), 1));
+        b.Freeze();
+        dc.DrawEllipse(b, null, c, r, r);
+    }
+
+    /// <summary>Halo drawn under a marking so it looks lit from behind.</summary>
+    void Halo(DrawingContext dc, Point a, Point b, double w)
+    {
+        if (dispLight < 0.01) return;
+        dc.DrawLine(PenOf(Fz(Back(55)), w + 6, true), a, b);
+    }
+
     void Cluster(DrawingContext dc)
     {
         var t = T;
@@ -172,7 +218,8 @@ public sealed class ClusterControl : FrameworkElement
         // background glow
         var glow = new RadialGradientBrush { Center = new Point(0.5, 0.62), GradientOrigin = new Point(0.5, 0.62), RadiusX = 0.62, RadiusY = 0.9 };
         glow.GradientStops.Add(new GradientStop(Color.FromRgb(12, 28, 38), 0)); glow.GradientStops.Add(new GradientStop(Color.FromRgb(3, 6, 10), 1));
-        dc.DrawRectangle(glow, null, new Rect(0, 0, DW, DH));
+        if (Chrome) dc.DrawDrawing(FaceDrawing());
+        else dc.DrawRectangle(glow, null, new Rect(0, 0, DW, DH));
 
         // amber glow beside the dial centre: bright while over the speed limit
         byte a = (byte)(over ? 235 : 38);
@@ -190,11 +237,16 @@ public sealed class ClusterControl : FrameworkElement
         }
 
         // dial ring
-        dc.DrawGeometry(null, PenOf(Fz(Color.FromRgb(20, 34, 44)), 8), Arc(R + 16, 204, -24));
+        if (!Chrome) dc.DrawGeometry(null, PenOf(Fz(Color.FromRgb(20, 34, 44)), 8), Arc(R + 16, 204, -24));
 
         // fuel (left) and AdBlue (right) gauges hugging the dial
         Gauge(dc, 163.5, 200, dispFuel, t.FuelWarn ? Red : Green, true);
         Gauge(dc, 16.5, -20, dispAdBlue, t.AdBlueWarn ? Red : Blue, false);
+
+        // backlight behind the dial (not below the bottom row)
+        dc.PushClip(new RectangleGeometry(new Rect(0, 0, DW, 594)));
+        BacklightFace(dc, C, R + 6);
+        dc.Pop();
 
         // ticks and numbers
         int labelFrom = Imp ? 40 : 60;
@@ -203,9 +255,10 @@ public sealed class ClusterControl : FrameworkElement
             bool major = i % 10 == 0;
             double ang = Ang(i);
             bool lit = i <= v;
-            var b = lit ? White : Grey;
+            var b = lit ? White : Marking(Grey, LitTick);
+            Halo(dc, P(ang, R - (major ? 38 : 20)), P(ang, R), major ? 3.6 : 2);
             dc.DrawLine(PenOf(b, major ? 3.6 : 2), P(ang, R - (major ? 38 : 20)), P(ang, R));
-            if (major && i >= labelFrom) { var p = P(ang, R - 72); Draw(dc, i.ToString(CultureInfo.InvariantCulture), p.X, p.Y, 30, lit ? White : Dim); }
+            if (major && i >= labelFrom) { var p = P(ang, R - 72); Draw(dc, i.ToString(CultureInfo.InvariantCulture), p.X, p.Y, 30, lit ? White : Marking(Dim, LitNumber)); }
         }
 
         // cruise-control setting and speed limit markers
@@ -222,8 +275,10 @@ public sealed class ClusterControl : FrameworkElement
 
         // needle
         double na = Ang(v);
+        if (Chrome) dc.DrawLine(PenOf(Fz(Color.FromArgb(40, 255, 59, 48)), 26, true), P(na, R - 150), P(na, R + 2));
         dc.DrawLine(PenOf(Fz(Color.FromArgb(70, 255, 59, 48)), 16, true), P(na, R - 150), P(na, R + 2));
-        dc.DrawLine(PenOf(Red, 6, true), P(na, R - 150), P(na, R + 2));
+        dc.DrawLine(PenOf(Red, Chrome ? 7 : 6, true), P(na, R - 150), P(na, R + 2));
+        if (Chrome) dc.DrawLine(PenOf(Fz(Color.FromArgb(200, 255, 190, 170)), 1.6, true), P(na, R - 146), P(na, R - 2));
 
         // speed
         double sp = Math.Max(0, v);
@@ -271,9 +326,19 @@ public sealed class ClusterControl : FrameworkElement
     void Gauge(DrawingContext dc, double a0, double a1, double fraction, Brush fill, bool left)
     {
         double r = R + 56;
-        dc.DrawGeometry(null, PenOf(Fz(Color.FromRgb(24, 36, 46)), 12, true), Arc(r, a0, a1));
+        if (!Chrome) dc.DrawGeometry(null, PenOf(Fz(Color.FromRgb(24, 36, 46)), 12, true), Arc(r, a0, a1));
         double fa = a1 + (a0 - a1) * Math.Clamp(fraction, 0, 1);   // fills from the bottom end (a1) upwards
-        if (fraction > 0.004) dc.DrawGeometry(null, PenOf(fill, 12, true), Arc(r, a1, fa));
+        if (fraction > 0.004)
+        {
+            if (Chrome && fill is SolidColorBrush sc)
+            {
+                // glowing liquid in a glass tube, with a highlight along the glass
+                dc.DrawGeometry(null, PenOf(Fz(Color.FromArgb(60, sc.Color.R, sc.Color.G, sc.Color.B)), 22, true), Arc(r, a1, fa));
+                dc.DrawGeometry(null, PenOf(fill, 12, true), Arc(r, a1, fa));
+                dc.DrawGeometry(null, PenOf(Fz(Color.FromArgb(110, 255, 255, 255)), 2.4, true), Arc(r - 2.5, a1, fa));
+            }
+            else dc.DrawGeometry(null, PenOf(fill, 12, true), Arc(r, a1, fa));
+        }
         // labels: the level and the name above the top end, 1/2 in the middle, E at the bottom end
         var top = P(a0, r + 40); var mid = P((a0 + a1) / 2, r + 36); var bot = P(a1, r + 34);
         Draw(dc, left ? "DIESEL" : DefName, top.X, top.Y - 40, 16, Dim, 1, true);
@@ -358,17 +423,21 @@ public sealed class ClusterControl : FrameworkElement
         }
 
         bool hot = warn || (rawC > 0 && rawC >= redC);
+        BacklightFace(dc, new Point(cx, cy), r + 6);
         dc.DrawGeometry(null, PenOf(Fz(Color.FromRgb(24, 36, 46)), 6, true), Ring(225, -45));
         dc.DrawGeometry(null, PenOf(Fz(Color.FromArgb(200, 255, 59, 48)), 6, true), Ring(A(U(redC)), -45));
         for (double u = lo; u <= hi + 0.01; u += minor)
         {
             bool big = Math.Abs((u - lo) % major) < 0.01;
             double ta = A(u);
-            dc.DrawLine(PenOf(big ? White : Grey, big ? 2.6 : 1.6), Q(ta, r - (big ? 16 : 10)), Q(ta, r - 4));
+            Halo(dc, Q(ta, r - (big ? 16 : 10)), Q(ta, r - 4), big ? 2.6 : 1.6);
+            dc.DrawLine(PenOf(big ? White : Marking(Grey, LitTick), big ? 2.6 : 1.6), Q(ta, r - (big ? 16 : 10)), Q(ta, r - 4));
         }
-        var l0 = Q(225, r + 4); var l1 = Q(-45, r + 4);
-        Draw(dc, lo.ToString(CultureInfo.InvariantCulture), l0.X - 2, l0.Y + 12, 14, Dim, 1, true);
-        Draw(dc, hi.ToString(CultureInfo.InvariantCulture), l1.X + 2, l1.Y + 12, 14, Dim, 1, true);
+        // scale ends: just below the track, or outside the chrome rim in the Chrome style
+        double lr = Chrome ? r + 28 : r + 4, dy = Chrome ? 4 : 12;
+        var l0 = Q(225, lr); var l1 = Q(-45, lr);
+        Draw(dc, lo.ToString(CultureInfo.InvariantCulture), l0.X - 2, l0.Y + dy, 14, Dim, 1, true);
+        Draw(dc, hi.ToString(CultureInfo.InvariantCulture), l1.X + 2, l1.Y + dy, 14, Dim, 1, true);
 
         // needle: drawn from just outside the reading to the scale, like the speed dial
         if (rawC > 0)
