@@ -40,36 +40,50 @@ public sealed partial class ClusterControl
     static Brush ChromeBrush(double b)
     {
         var br = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
-        br.GradientStops.Add(new GradientStop(Steel(b * 1.0, 4), 0));
-        br.GradientStops.Add(new GradientStop(Steel(b * 0.62, 5), 0.42));
-        br.GradientStops.Add(new GradientStop(Steel(b * 0.38, 6), 0.55));
-        br.GradientStops.Add(new GradientStop(Steel(b * 0.8, 4), 0.85));
-        br.GradientStops.Add(new GradientStop(Steel(b * 0.6, 3), 1));
+        b *= CK;
+        br.GradientStops.Add(new GradientStop(Steel(b * 1.0, 4 * CK), 0));
+        br.GradientStops.Add(new GradientStop(Steel(b * 0.62, 5 * CK), 0.42));
+        br.GradientStops.Add(new GradientStop(Steel(b * 0.38, 6 * CK), 0.55));
+        br.GradientStops.Add(new GradientStop(Steel(b * 0.8, 4 * CK), 0.85));
+        br.GradientStops.Add(new GradientStop(Steel(b * 0.6, 3 * CK), 1));
         br.Freeze();
         return br;
     }
 
-    static Drawing? frameDrawing, faceDrawing;
+    // [0] = daylight, [1] = night: the same parts with the chrome and the padding almost black, as they look in a dark cab
+    static readonly Drawing?[] frameDrawing = new Drawing?[2], faceDrawing = new Drawing?[2];
+    static double CK = 1;   // chrome brightness while a drawing is built (1 by day)
+
+    /// <summary>How dark it is outside from the game clock: 0 by day, 1 at night, easing over dusk (19:00-21:00) and dawn (5:00-7:00).
+    /// The game does not report the light level, so the time of day stands in for it.</summary>
+    public static double NightFromClock(DateTime t)
+    {
+        if (t == DateTime.MinValue) return 0;
+        double h = t.TimeOfDay.TotalHours;
+        static double S(double x) { x = Math.Clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+        return h >= 12 ? S((h - 19) / 2) : 1 - S((h - 5) / 2);
+    }
 
     /// <summary>Upholstered padding, chrome bezel and the screen behind the glass (canvas coordinates).</summary>
-    static Drawing FrameDrawing()
+    static Drawing FrameDrawing(int night)
     {
-        if (frameDrawing != null) return frameDrawing;
+        if (frameDrawing[night] is { } done) return done;
+        CK = night == 1 ? 0.16 : 1; double lk = night == 1 ? 0.3 : 1;
         var g = new DrawingGroup();
         using (var dc = g.Open())
         {
             // padding: dark leather that bulges between its edges, lit from above, with a stitch line beside the chrome
-            dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(16, 15, 15)), null, Inset(0));
+            dc.DrawGeometry(new SolidColorBrush(Color.FromRgb((byte)(16 * lk), (byte)(15 * lk), (byte)(15 * lk))), null, Inset(0));
             for (double d = 1; d < Pad; d += 1.5)
             {
-                double t = d / Pad, b = 0.05 + 0.13 * Math.Pow(Math.Sin(Math.PI * t), 0.7);
+                double t = d / Pad, b = (0.05 + 0.13 * Math.Pow(Math.Sin(Math.PI * t), 0.7)) * lk;
                 var br = new LinearGradientBrush(Color.FromRgb((byte)(b * 290), (byte)(b * 280), (byte)(b * 272)), Color.FromRgb((byte)(b * 160), (byte)(b * 154), (byte)(b * 150)), 90);
                 br.Freeze();
                 dc.DrawGeometry(null, new Pen(br, 2), Inset(d));
             }
             var ring = new CombinedGeometry(GeometryCombineMode.Exclude, Inset(0), Inset(Pad)); ring.Freeze();
-            dc.DrawGeometry(LeatherGrain(), null, ring);
-            var stitch = new Pen(new SolidColorBrush(Color.FromArgb(150, 92, 88, 84)), 1.4) { DashStyle = new DashStyle(new double[] { 3.2, 2.4 }, 0), DashCap = PenLineCap.Round };
+            dc.PushOpacity(lk); dc.DrawGeometry(LeatherGrain(), null, ring); dc.Pop();
+            var stitch = new Pen(new SolidColorBrush(Color.FromArgb((byte)(150 * lk), 92, 88, 84)), 1.4) { DashStyle = new DashStyle(new double[] { 3.2, 2.4 }, 0), DashCap = PenLineCap.Round };
             stitch.Freeze();
             dc.DrawGeometry(null, stitch, Inset(Pad - 6));
             // chrome bezel
@@ -80,8 +94,8 @@ public sealed partial class ClusterControl
             scr.Freeze();
             dc.DrawGeometry(scr, null, Inset(ScreenInset));
         }
-        g.Freeze();
-        return frameDrawing = g;
+        g.Freeze(); CK = 1;
+        return frameDrawing[night] = g;
     }
 
     /// <summary>A fine random grain, tiled over the leather.</summary>
@@ -103,9 +117,10 @@ public sealed partial class ClusterControl
 
     /// <summary>The fixed parts drawn under the readings (cluster coordinates): dial face and chrome ring, the hub behind
     /// the gear, temperature gauge rims, the glass tubes of the fuel and AdBlue gauges, the lamp strip and divider lines.</summary>
-    static Drawing FaceDrawing()
+    static Drawing FaceDrawing(int night)
     {
-        if (faceDrawing != null) return faceDrawing;
+        if (faceDrawing[night] is { } done) return done;
+        CK = night == 1 ? 0.16 : 1;
         var g = new DrawingGroup();
         using (var dc = g.Open())
         {
@@ -187,8 +202,8 @@ public sealed partial class ClusterControl
             }
             foreach (double x in new[] { 205.0, 450, 770, 1005 }) VLine(x, 606, 676);
         }
-        g.Freeze();
-        return faceDrawing = g;
+        g.Freeze(); CK = 1;
+        return faceDrawing[night] = g;
     }
 
     /// <summary>Faint reflection on the glass, over everything (canvas coordinates).</summary>
@@ -205,16 +220,23 @@ public sealed partial class ClusterControl
         return b;
     }
 
+    /// <summary>Draws the daylight version, then the night version over it as dusk falls.</summary>
+    void DayNight(DrawingContext dc, Func<int, Drawing> part)
+    {
+        if (dispNight < 0.995) dc.DrawDrawing(part(0));
+        if (dispNight > 0.005) { dc.PushOpacity(dispNight); dc.DrawDrawing(part(1)); dc.Pop(); }
+    }
+
     void RenderChrome(DrawingContext dc)
     {
         dc.PushClip(Inset(0));
-        dc.DrawDrawing(FrameDrawing());
+        DayNight(dc, FrameDrawing);
         dc.PushClip(Inset(ScreenInset));
         dc.PushTransform(new TranslateTransform(CX0, CY0));
         dc.PushTransform(new ScaleTransform(CS, CS));
         Cluster(dc);
         dc.Pop(); dc.Pop();
-        dc.DrawGeometry(Sheen, null, Inset(ScreenInset));
+        dc.PushOpacity(1 - 0.75 * dispNight); dc.DrawGeometry(Sheen, null, Inset(ScreenInset)); dc.Pop();
         dc.Pop(); dc.Pop();
     }
 }

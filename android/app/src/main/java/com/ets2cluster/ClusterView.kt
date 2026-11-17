@@ -58,6 +58,8 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
     // smoothed values: the needle glides between telemetry updates
     private var dispSpeed = 0f; private var dispRpm = 0f; private var dispFuel = 0f; private var dispAdBlue = 0f
     private var dispWater = 0f; private var dispOil = 0f
+    private var dispNight = 0f   // Chrome style: 0 = daylight look .. 1 = dark cab at night (from the game clock)
+    private val nightPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private var dispLight = 0f   // instrument backlight, 0 = off .. 1 = on (follows the truck's lights)
     private var lastFrame = 0L
 
@@ -97,6 +99,9 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         val lt = if (backlight != "off" && (truck.parking || truck.lowBeam || truck.highBeam)) 1f else 0f
         val ld = lt - dispLight
         if (abs(ld) > 0.004f) { dispLight += ld * (1 - exp(-dt * 6.0)).toFloat(); moving = true } else if (ld != 0f) { dispLight = lt; moving = true }
+        // night look of the Chrome surround, from the game clock
+        val nd = ChromeStyle.nightFromClock(truck.gameClockMin) - dispNight
+        if (abs(nd) > 0.004f) { dispNight += nd * (1 - exp(-dt * 2.0)).toFloat(); moving = true } else if (nd != 0f) { dispNight += nd; moving = true }
         return moving
     }
 
@@ -201,7 +206,12 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
         canvas.scale(s, s)
         if (chrome) {
             canvas.restoreToCount(save)
-            canvas.drawBitmap(ChromeStyle.layer(width, height, tempX, CORNER), 0f, 0f, null)
+            // the daylight picture, then the night picture over it as dusk falls
+            if (dispNight < 0.995f) canvas.drawBitmap(ChromeStyle.layer(width, height, tempX, CORNER, 0), 0f, 0f, null)
+            if (dispNight > 0.005f) {
+                nightPaint.alpha = (255 * dispNight).roundToInt().coerceIn(0, 255)
+                canvas.drawBitmap(ChromeStyle.layer(width, height, tempX, CORNER, 1), 0f, 0f, nightPaint)
+            }
             canvas.save()
             canvas.translate((w - DW * s) / 2, (h - DH * s) / 2)
             canvas.scale(s, s)
@@ -210,7 +220,7 @@ class ClusterView(ctx: Context, private val onLongPress: () -> Unit) : View(ctx)
             canvas.translate(ChromeStyle.CX0, ChromeStyle.CY0); canvas.scale(ChromeStyle.CS, ChromeStyle.CS)
             cluster(canvas)
             canvas.restoreToCount(inner)
-            ChromeStyle.sheen(canvas)
+            ChromeStyle.sheen(canvas, dispNight)
         } else {
             canvas.clipPath(outline(0f))
             cluster(canvas)

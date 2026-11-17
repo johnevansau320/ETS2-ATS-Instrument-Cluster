@@ -5,7 +5,7 @@ namespace Ets2Cluster;
 public static class Program
 {
     // Ets2Cluster.exe [--config file.json] [--host 127.0.0.1:31377] [--demo] [--snapshot out.png]
-    //   --demo      shows made-up values instead of reading the game (to try the layout); --demo-state over|warn|lightsoff picks another made-up state
+    //   --demo      shows made-up values instead of reading the game (to try the layout); --demo-state over|warn|lightsoff|night picks another made-up state
     //   --snapshot  draws the cluster to a picture and quits (used for the manual)
     [STAThread]
     public static int Main(string[] args)

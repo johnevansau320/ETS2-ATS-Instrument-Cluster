@@ -92,6 +92,7 @@ object TelemetryParser {
             gameClockMin = 6 * 60 + 50; etaMin = 72f; restMin = 8 * 60 + 12f
         }
         if (state == "over") { t.speedKmh = 98f; t.rpm = 1480f; t.blinkerR = false; t.highBeam = true }
+        if (state == "night") t.gameClockMin = 23 * 60 + 40
         return t
     }
 }

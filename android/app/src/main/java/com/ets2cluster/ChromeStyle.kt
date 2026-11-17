@@ -41,7 +41,18 @@ object ChromeStyle {
     fun insetPath(d: Float): Path = Path().apply { val r = max(0f, OUTER_R - d); addRoundRect(inset(d), r, r, Path.Direction.CW) }
 
     private fun c8(v: Double) = v.coerceIn(0.0, 255.0).toInt()
-    private fun steel(b: Double, tint: Double) = Color.rgb(c8(b * 255), c8(b * 255 + tint), c8(b * 255 + 2 * tint))
+    /** Chrome brightness while a picture is drawn: 1 by day, almost black at night. */
+    private var ck = 1.0
+    private fun steel(b: Double, tint: Double) = Color.rgb(c8(b * ck * 255), c8((b * 255 + tint) * ck), c8((b * 255 + 2 * tint) * ck))
+
+    /** How dark it is outside from the game clock (minutes after midnight, -1 unknown): 0 by day, 1 at night, easing over
+     *  dusk (19:00-21:00) and dawn (5:00-7:00). The game does not report the light level, so the time of day stands in for it. */
+    fun nightFromClock(min: Int): Float {
+        if (min < 0) return 0f
+        val h = (min % 1440) / 60.0
+        fun s(x: Double): Double { val v = x.coerceIn(0.0, 1.0); return v * v * (3 - 2 * v) }
+        return (if (h >= 12) s((h - 19) / 2) else 1 - s((h - 5) / 2)).toFloat()
+    }
 
     /** Brightness of polished chrome across a band, t from the outer edge (0) to the inner edge (1). */
     fun profile(t: Double): Double {
@@ -89,17 +100,17 @@ object ChromeStyle {
     }
 
     /** Upholstered padding, chrome bezel and the screen behind the glass (canvas coordinates). */
-    private fun frame(c: Canvas) {
-        c.drawRoundRect(inset(0f), OUTER_R, OUTER_R, fill(null, Color.rgb(16, 15, 15)))
+    private fun frame(c: Canvas, lk: Double) {
+        c.drawRoundRect(inset(0f), OUTER_R, OUTER_R, fill(null, Color.rgb(c8(16 * lk), c8(15 * lk), c8(15 * lk))))
         var d = 1f
         while (d < PAD) {
-            val t = d / PAD; val b = 0.05 + 0.13 * sin(PI * t).pow(0.7)
+            val t = d / PAD; val b = (0.05 + 0.13 * sin(PI * t).pow(0.7)) * lk
             roundRectStroke(c, d, 2f, LinearGradient(0f, d, 0f, DH - d, Color.rgb(c8(b * 290), c8(b * 280), c8(b * 272)), Color.rgb(c8(b * 160), c8(b * 154), c8(b * 150)), Shader.TileMode.CLAMP))
             d += 1.5f
         }
         val ring = Path().apply { fillType = Path.FillType.EVEN_ODD; addPath(insetPath(0f)); addPath(insetPath(PAD)) }
-        c.drawPath(ring, fill(grain()))
-        val st = stroke(1.4f, null, Color.argb(150, 92, 88, 84), true); st.pathEffect = DashPathEffect(floatArrayOf(3.2f, 2.4f), 0f)
+        c.drawPath(ring, fill(grain()).apply { alpha = c8(255 * lk) })
+        val st = stroke(1.4f, null, Color.argb(c8(150 * lk), 92, 88, 84), true); st.pathEffect = DashPathEffect(floatArrayOf(3.2f, 2.4f), 0f)
         c.drawRoundRect(inset(PAD - 6), OUTER_R - PAD + 6, OUTER_R - PAD + 6, st)
         d = 0f
         while (d <= BEZEL) { roundRectStroke(c, PAD + d, 1.9f, chromeShader(profile((d / BEZEL).toDouble()), PAD + d, DH - PAD - d)); d += 1.25f }
@@ -160,30 +171,33 @@ object ChromeStyle {
         for (x in floatArrayOf(205f, 450f, 770f, 1005f)) vLine(x, 606f, 676f)
     }
 
-    private var layer: Bitmap? = null
+    private val layers = arrayOfNulls<Bitmap>(2)
 
-    /** The fixed picture for a screen of w x h pixels: frame, screen and the fixed parts of the instruments. */
-    fun layer(w: Int, h: Int, tempX: Float, tempY: Float): Bitmap {
-        layer?.let { if (it.width == w && it.height == h) return it; it.recycle() }
+    /** The fixed picture for a screen of w x h pixels: frame, screen and the fixed parts of the instruments.
+     *  [night] 0 is the daylight look, 1 the same with the chrome and padding almost black, as in a dark cab. */
+    fun layer(w: Int, h: Int, tempX: Float, tempY: Float, night: Int = 0): Bitmap {
+        layers[night]?.let { if (it.width == w && it.height == h) return it; it.recycle() }
+        ck = if (night == 1) 0.16 else 1.0
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val s = min(w / DW, h / DH)
         c.translate((w - DW * s) / 2, (h - DH * s) / 2); c.scale(s, s)
         c.clipPath(insetPath(0f))
-        frame(c)
+        frame(c, if (night == 1) 0.3 else 1.0)
         c.clipPath(insetPath(SCREEN_INSET))
         c.translate(CX0, CY0); c.scale(CS, CS)
         face(c, tempX, tempY)
-        layer = bmp
+        ck = 1.0
+        layers[night] = bmp
         return bmp
     }
 
     /** Faint reflection on the glass (canvas coordinates). */
-    fun sheen(c: Canvas) {
+    fun sheen(c: Canvas, night: Float = 0f) {
         val s = inset(SCREEN_INSET)
         val g = LinearGradient(s.left, s.top, s.left + s.width() * 0.75f, s.bottom,
             intArrayOf(Color.argb(26, 255, 255, 255), Color.argb(10, 255, 255, 255), Color.argb(0, 255, 255, 255), Color.argb(0, 255, 255, 255), Color.argb(9, 255, 255, 255)),
             floatArrayOf(0f, 0.28f, 0.42f, 0.7f, 1f), Shader.TileMode.CLAMP)
-        c.drawRoundRect(s, OUTER_R - SCREEN_INSET, OUTER_R - SCREEN_INSET, fill(g))
+        c.drawRoundRect(s, OUTER_R - SCREEN_INSET, OUTER_R - SCREEN_INSET, fill(g).apply { alpha = c8(255 * (1 - 0.75 * night)) })
     }
 }

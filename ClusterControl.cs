@@ -24,6 +24,7 @@ public sealed partial class ClusterControl : FrameworkElement
 
     // smoothed values (the needle glides between telemetry updates)
     double dispSpeed, dispRpm, dispFuel, dispAdBlue, dispWater, dispOil;
+    double dispNight;   // Chrome style: 0 = daylight look .. 1 = dark cab at night (from the game clock)
     double dispLight;   // instrument backlight, 0 = off .. 1 = on (follows the truck's lights)
 
     static Brush Fz(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
@@ -96,6 +97,9 @@ public sealed partial class ClusterControl : FrameworkElement
         // instrument backlight fades in and out over about half a second
         double lt = Cfg.Backlight != "off" && (T.Parking || T.LowBeam || T.HighBeam) ? 1 : 0, ld = lt - dispLight;
         if (Math.Abs(ld) > 0.004) { dispLight += ld * (1 - Math.Exp(-dt * 6)); moving = true; } else if (ld != 0) { dispLight = lt; moving = true; }
+        // night look of the Chrome surround, from the game clock (the game changes the hour slowly, so ease gently)
+        double nt = NightFromClock(T.GameTime), nd = nt - dispNight;
+        if (Math.Abs(nd) > 0.004) { dispNight += nd * (1 - Math.Exp(-dt * 2)); moving = true; } else if (nd != 0) { dispNight = nt; moving = true; }
         return moving;
     }
 
@@ -218,7 +222,7 @@ public sealed partial class ClusterControl : FrameworkElement
         // background glow
         var glow = new RadialGradientBrush { Center = new Point(0.5, 0.62), GradientOrigin = new Point(0.5, 0.62), RadiusX = 0.62, RadiusY = 0.9 };
         glow.GradientStops.Add(new GradientStop(Color.FromRgb(12, 28, 38), 0)); glow.GradientStops.Add(new GradientStop(Color.FromRgb(3, 6, 10), 1));
-        if (Chrome) dc.DrawDrawing(FaceDrawing());
+        if (Chrome) DayNight(dc, FaceDrawing);
         else dc.DrawRectangle(glow, null, new Rect(0, 0, DW, DH));
 
         // amber glow beside the dial centre: bright while over the speed limit

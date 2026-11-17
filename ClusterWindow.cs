@@ -103,6 +103,7 @@ public sealed class ClusterWindow : Window
     {
         var t = DemoBase();
         if (state == "lightsoff") { t.LowBeam = false; t.Parking = false; t.HighBeam = false; }
+        else if (state == "night") { t.GameTime = new DateTime(1, 1, 3, 23, 40, 0); }
         else if (state == "over") { t.SpeedKmh = 98; t.SpeedLimit = 90; t.RpmValue = 1480; t.Gear = 12; t.BlinkerR = false; t.HighBeam = true; }
         else if (state == "warn") { t.SpeedKmh = 42; t.SpeedLimit = 50; t.CruiseOn = false; t.RpmValue = 1750; t.Gear = 7; t.FuelL = 150; t.RangeKm = 410; t.ParkBrake = false; t.MotorBrake = true; t.Retarder = 2; t.FuelWarn = true; t.AirWarn = true; t.Wipers = true; t.Beacon = true; t.BlinkerL = true; t.BlinkerR = false; t.WaterC = 101; t.AdBlueL = 6; t.AdBlueWarn = true; }
         return t;

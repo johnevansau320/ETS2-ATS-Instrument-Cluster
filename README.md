@@ -31,13 +31,14 @@ Needs Windows 10 or 11 (64-bit). Nothing else to install: the program carries th
 * A fine bevelled **frame** with rounded top corners (new in 1.6.1). On Windows the corners outside the frame are see-through.
 * Two **styles** (new in 1.7.0): **Classic**, or **Chrome**, with a dark upholstered padding around a polished chrome bezel, chrome rings round the dial and the temperature gauges, and glass-tube fuel gauges.
 * A **gauge backlight** (new in 1.7.0): when the truck's parking lights or headlights are on, the dial and the temperature gauges light up softly, like a real cluster at night. Choose cool white, red, amber or green, or switch it off.
+* A **night look** for the Chrome style (new in 1.7.1): the game reports no light level, so the cluster follows the game clock. Between 21:00 and 05:00 game time the chrome and the padding turn almost black, leaving a faint outline, and the glass reflection dims; the change fades in over dusk (19:00-21:00) and out over dawn (05:00-07:00).
 * **Game time**, **time until you must rest**, the PC's **local time** in large digits in the middle of the bottom row, **trip** distance and **odometer**.
 * Lamps: both turn signals, low and high beam; tags for the parking brake, engine brake, retarder step, wipers, beacon and the warnings (low fuel and low AdBlue are worked out from the tank levels, at 15 %) (air pressure, oil pressure, coolant, battery, low fuel, low AdBlue).
 * The truck make under the speed (VOLVO, SCANIA ...), which can be switched off.
 
 ## Android version
 
-The same cluster, full screen, for an Android 7.0+ tablet or phone on the same Wi-Fi as the game PC. Download **`Ets2Cluster-<version>.apk`** from the [Releases](../../releases) page and open it (Android asks to allow installs from your browser or file manager). Then long-press the cluster, choose **PC address** and enter the game PC's address (for example `192.168.1.20`; port 31377 is assumed). Enter `demo` to see made-up values without the game. The PC's firewall must allow port 31377.
+The same cluster, full screen, for an Android 7.0+ tablet or phone on the same Wi-Fi as the game PC. Download **`Ets2Cluster-<version>.apk`** from the [Releases](../../releases) page and open it (Android asks to allow installs from your browser or file manager). Then long-press the cluster, choose **PC address** and enter the game PC's address (for example `192.168.1.20`; port 31377 is assumed). Enter `demo` to see made-up values without the game (`demo night` shows them at night). The PC's firewall must allow port 31377.
 
 The menu (long-press) has the PC address, units, show the truck name, the style (Classic or Chrome), the backlight colour, reset trip and the update check. The local time at the bottom is the tablet's clock. The app is signed with a development key (not on Google Play), so Android or Play Protect may ask for confirmation; the release page lists the SHA-256 checksum. The source is in [`android/`](android) (plain Android APIs, no third-party libraries): `gradle testDebugUnitTest assembleDebug`.
 
@@ -72,7 +73,7 @@ build-portable.ps1     the portable zip: installer\Output\Ets2Cluster-portable-<
 install.ps1            installs without the setup program (Start Menu shortcut; -NoPrompt, -Autostart)
 ```
 
-Command line (testing): `--config file.json`, `--host 127.0.0.1:31377`, `--demo` (made-up values, no game needed; `--demo-state over|warn|lightsoff` for other states), `--snapshot out.png` (draws the cluster to a picture and quits).
+Command line (testing): `--config file.json`, `--host 127.0.0.1:31377`, `--demo` (made-up values, no game needed; `--demo-state over|warn|lightsoff|night` for other states), `--snapshot out.png` (draws the cluster to a picture and quits).
 
 ## Notes
 

@@ -47,7 +47,7 @@ class MainActivity : Activity() {
         super.onResume()
         immersive()
         view.units = settings.units; view.showMake = settings.showMake; view.style = settings.style; view.backlight = settings.backlight
-        if (settings.host.equals("demo", true)) startDemo() else { demoRunning = false; client.start() }
+        if (isDemo) startDemo() else { demoRunning = false; client.start() }
         ui.post(clockTick)
         maybeCheckUpdate()
     }
@@ -60,6 +60,9 @@ class MainActivity : Activity() {
     // the local clock needs a redraw once a second even when nothing else moves
     private val clockTick = object : Runnable { override fun run() { view.invalidate(); ui.postDelayed(this, 1000) } }
 
+    /** "demo" shows made-up values; "demo night" the same at night (to see the Chrome style's night look). */
+    private val isDemo get() = settings.host.trim().lowercase().let { it == "demo" || it == "demo night" }
+
     private fun startDemo() {
         client.stop()
         if (demoRunning) return
@@ -69,7 +72,9 @@ class MainActivity : Activity() {
             override fun run() {
                 if (!demoRunning) return
                 demoTick++
-                onTruck(TelemetryParser.demo(if ((demoTick / 40) % 2 == 1) "over" else ""))
+                val t = TelemetryParser.demo(if ((demoTick / 40) % 2 == 1) "over" else "")
+                if (settings.host.trim().equals("demo night", true)) t.gameClockMin = 23 * 60 + 40
+                onTruck(t)
                 ui.postDelayed(this, 200)
             }
         }
@@ -155,7 +160,7 @@ class MainActivity : Activity() {
             .setPositiveButton("Save") { _, _ ->
                 settings.host = input.text.toString()
                 client.stop(); demoRunning = false
-                if (settings.host.equals("demo", true)) startDemo() else { view.statusText = ""; client.start() }
+                if (isDemo) startDemo() else { view.statusText = ""; client.start() }
             }.setNegativeButton("Cancel", null).show()
     }
 
